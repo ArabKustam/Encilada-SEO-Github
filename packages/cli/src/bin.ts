@@ -7,11 +7,13 @@ import { registerPreview } from "@repokit/preview";
 import { registerReadme } from "@repokit/readme";
 import { registerScan } from "@repokit/scan";
 import { registerStudio } from "@repokit/studio";
+import { registerVerify } from "@repokit/verify";
 import { registerDoctor } from "./doctor.js";
+import { registerRun } from "./run.js";
 
 /** Services from DESIGN.md that are not built yet, with the milestone that delivers them. */
 const PLANNED: Record<string, string> = {
-  verify: "M5", deploy: "M6", polish: "M7", run: "M5",
+  deploy: "M6", polish: "M7",
 };
 
 const program = new Command("repokit")
@@ -25,6 +27,8 @@ registerStudio(program);
 registerBrief(program);
 registerReadme(program);
 registerPreview(program);
+registerVerify(program);
+registerRun(program);
 registerDoctor(program);
 
 for (const [name, milestone] of Object.entries(PLANNED)) {

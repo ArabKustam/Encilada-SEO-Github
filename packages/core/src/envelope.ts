@@ -110,14 +110,17 @@ export async function runCommand<T>(
       artifacts: result.artifacts ?? [],
     };
   } catch (error) {
-    if (!(error instanceof UsageError) && !(error instanceof NeedsHumanError)) throw error;
+    // An unexpected failure still honours the contract: one JSON document, a non-zero exit code.
+    const expected = error instanceof UsageError || error instanceof NeedsHumanError;
+    const message = error instanceof Error ? error.message : String(error);
     envelope = {
       service, command, version: VERSION,
       ok: false,
-      exitCode: error instanceof UsageError ? ExitCode.Usage : ExitCode.NeedsHuman,
+      exitCode: error instanceof UsageError ? ExitCode.Usage : error instanceof NeedsHumanError ? ExitCode.NeedsHuman : ExitCode.CheckFailed,
       data: null, warnings: [], humanTodo: [], artifacts: [],
-      error: { message: error.message },
+      error: { message: expected ? message : `внутренняя ошибка: ${message}` },
     };
+    if (!expected && flags.verbose && error instanceof Error && error.stack) say(error.stack);
   }
 
   const tag = `[${service} ${command}]`;

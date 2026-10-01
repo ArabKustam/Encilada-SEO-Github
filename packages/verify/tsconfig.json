@@ -15,22 +15,7 @@
       "path": "../scan"
     },
     {
-      "path": "../capture"
-    },
-    {
-      "path": "../studio"
-    },
-    {
-      "path": "../brief"
-    },
-    {
       "path": "../readme"
-    },
-    {
-      "path": "../preview"
-    },
-    {
-      "path": "../verify"
     }
   ]
 }

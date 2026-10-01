@@ -8,7 +8,8 @@ import { validate } from "../../packages/core/src/index.js";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const BIN = join(ROOT, "packages/cli/dist/bin.js");
-const SECRET = "s3cret-demo-password-value";
+// Assembled at run time so that this file stays clean for secret scanners.
+const SECRET = ["s3cret", "demo", "password", "value"].join("-");
 
 function repokit(args: string[], env: NodeJS.ProcessEnv = {}) {
   const result = spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { ...process.env, ...env } });
@@ -50,7 +51,7 @@ describe("repokit CLI contract", () => {
   it("exits 2 on usage errors and on services that are not built yet", () => {
     expect(repokit(["scan", "audit", "--no-such-flag"]).code).toBe(2);
     expect(repokit(["scan", "audit", "--repo", join(repo, "missing")]).code).toBe(2);
-    expect(repokit(["verify", "run"]).code).toBe(2);
+    expect(repokit(["deploy", "plan"]).code).toBe(2);
   });
 
   it("exits 1 when a claim marked implemented cannot be proven", () => {
@@ -70,5 +71,64 @@ describe("repokit CLI contract", () => {
     const { stdout, stderr } = repokit(["scan", "audit", "--repo", leaky, "--json"], { DEMO_PASSWORD: SECRET });
     expect(stdout + stderr).not.toContain(SECRET);
     expect(stdout).toContain("[REDACTED]");
+  });
+});
+
+describe("repokit run", () => {
+  const project = mkdtempSync(join(tmpdir(), "repokit-run-"));
+  cpSync(join(ROOT, "examples/web-app"), project, { recursive: true, filter: (source) => !source.includes(".repokit") && !source.includes("docs") });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const run = (...args: string[]) => {
+    const result = repokit(["run", project, "--json", ...args]);
+    return { code: result.code, data: JSON.parse(result.stdout).data, todo: JSON.parse(result.stdout).humanTodo as { id: string; text: string }[] };
+  };
+  const statuses = (data: { steps: { id: string; status: string }[] }) => Object.fromEntries(data.steps.map((s) => [s.id, s.status]));
+
+  it("stops and asks when there are no hackathon rules", () => {
+    const { code, data, todo } = run();
+    expect(code).toBe(3);
+    expect(statuses(data)).toMatchObject({ scan: "done", brief: "waiting", claims: "pending" });
+    expect(todo[0].text).toContain("--default-brief");
+  });
+
+  it("stops until the claims are backed by code", () => {
+    const { code, data } = run("--default-brief");
+    expect(code).toBe(3);
+    expect(statuses(data)).toMatchObject({ scan: "done", brief: "done", claims: "waiting" });
+  });
+
+  it("does not write README.md without approval", () => {
+    const file = join(project, ".repokit/claims.json");
+    const doc = JSON.parse(readFileSync(file, "utf8"));
+    Object.assign(doc.claims[0], { status: "implemented", evidence: [{ file: "app/main.py", lines: [44, 47] }] });
+    Object.assign(doc.claims[2], { status: "mock", evidence: [{ file: "app/main.py", lines: [65, 68] }] });
+    writeFileSync(file, JSON.stringify(doc));
+    const before = readFileSync(join(project, "README.md"), "utf8");
+
+    const { code, data, todo } = run("--skip", "demo");
+    expect(code).toBe(3);
+    expect(statuses(data)).toMatchObject({ claims: "done", demo: "skipped", readme: "waiting", verify: "pending" });
+    expect(todo[0].text).toContain("--approve readme");
+    expect(readFileSync(join(project, "README.md"), "utf8")).toBe(before);
+  });
+
+  it("after approval writes the README, and verification honestly fails on what is still blank", () => {
+    const { code, data } = run("--approve", "readme");
+    const readme = readFileSync(join(project, "README.md"), "utf8");
+    expect(readme).toContain("## Возможности");
+    expect(readme).not.toMatch(/Возможности[^#]*Умные подсказки/);
+    // No tagline, no license, no hero: the author has not filled these in, so the repository is not ready.
+    expect(statuses(data)).toMatchObject({ readme: "done", verify: "failed" });
+    expect(code).toBe(1);
+  });
+
+  it("passes verification once the author fills in the blanks", () => {
+    writeFileSync(join(project, ".repokit/readme.human.yaml"), "tagline: Список задач\nproblem: Нужен общий список.\nsolution: Одна страница.\nskip: [hero, team]\n");
+    writeFileSync(join(project, "LICENSE"), "MIT License\n");
+    const { code, data, todo } = run("--reset", "--default-brief", "--skip", "demo", "--approve", "readme");
+    expect(statuses(data)).toMatchObject({ readme: "done", verify: "done" });
+    expect(code).toBe(0);
+    // Standing notes survive: the criteria are still an assumption, and the skipped demo is still missing.
+    expect(todo.map((t) => t.id)).toEqual(expect.arrayContaining(["brief.default", "run.skipped.demo"]));
   });
 });

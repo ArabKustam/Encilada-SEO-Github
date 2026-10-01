@@ -10,7 +10,7 @@ import { checkClaims, extractClaims, mergeClaims, pinClaims, type ClaimCheck } f
 import { renderContext, suggestTopics } from "./report.js";
 import type { ClaimsDoc, ScanResult } from "./types.js";
 
-export { analyze } from "./analyze.js";
+export { analyze, isTestFile } from "./analyze.js";
 export { checkClaims, extractClaims, mergeClaims, pinClaims, snippetHash } from "./claims.js";
 export { renderContext, suggestTopics } from "./report.js";
 export type * from "./types.js";

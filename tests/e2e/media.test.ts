@@ -122,3 +122,44 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
     expect(envelope.warnings.join(" ")).toContain("происхождение неизвестно");
   }, 60_000);
 });
+
+describe.skipIf(!enabled)("repokit run, start to finish", () => {
+  const project = mkdtempSync(join(tmpdir(), "repokit-run-media-"));
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  cpSync(join(ROOT, "examples/web-app"), project, { recursive: true, filter: (source) => !source.includes(".repokit") && !source.includes("docs") });
+  const run = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [BIN, "run", project, "--json", ...args], { encoding: "utf8" });
+    return { code: result.status, envelope: JSON.parse(result.stdout), stderr: result.stderr };
+  };
+
+  it("with the author's input and approvals, produces a README, a hero GIF, a 3D version and passes verification", () => {
+    expect(run("--default-brief").code).toBe(3);
+    const claims = join(project, ".repokit/claims.json");
+    const doc = JSON.parse(readFileSync(claims, "utf8"));
+    Object.assign(doc.claims[0], { status: "implemented", evidence: [{ file: "app/main.py", lines: [44, 47] }] });
+    Object.assign(doc.claims[1], { status: "implemented", evidence: [{ file: "app/store.py", lines: [26, 30] }] });
+    Object.assign(doc.claims[2], { status: "mock", evidence: [{ file: "app/main.py", lines: [65, 68] }] });
+    writeFileSync(claims, JSON.stringify(doc));
+    writeFileSync(join(project, ".repokit/readme.human.yaml"), "tagline: Список задач на один экран\nproblem: Нужен общий список дел.\nsolution: Одна страница.\nskip: [team]\n");
+    writeFileSync(join(project, "LICENSE"), "MIT License\n");
+
+    // Nothing is recorded or written until each step is approved.
+    const waiting = run();
+    expect(waiting.code).toBe(3);
+    expect(existsSync(join(project, "docs/media/hero.gif"))).toBe(false);
+
+    const { code, envelope, stderr } = run("--approve", "demo", "--approve", "readme");
+    expect(code, stderr).toBe(0);
+    expect(envelope.data.steps.map((s: { status: string }) => s.status)).toEqual(["done", "done", "done", "done", "done", "done"]);
+    expect(statSync(join(project, "docs/media/hero.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
+    expect(statSync(join(project, "docs/media/hero-3d.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
+
+    const readme = readFileSync(join(project, "README.md"), "utf8");
+    expect(readme).toContain('<img src="docs/media/hero.gif"');
+    expect(readme).toContain("**Список задач на один экран**");
+    expect(readme).not.toContain("FILL");
+    expect(readFileSync(join(project, ".repokit/human-todo.md"), "utf8")).toContain("профиль по умолчанию");
+    expect(JSON.parse(readFileSync(join(project, ".repokit/verify.json"), "utf8")).ok).toBe(true);
+  }, 900_000);
+});
+

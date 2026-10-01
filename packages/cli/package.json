@@ -18,6 +18,7 @@
     "@repokit/studio": "workspace:*",
     "@repokit/brief": "workspace:*",
     "@repokit/readme": "workspace:*",
-    "@repokit/preview": "workspace:*"
+    "@repokit/preview": "workspace:*",
+    "@repokit/verify": "workspace:*"
   }
 }

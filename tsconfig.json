@@ -26,6 +26,9 @@
       "path": "packages/preview"
     },
     {
+      "path": "packages/verify"
+    },
+    {
       "path": "packages/cli"
     }
   ]

@@ -1,0 +1,22 @@
+{
+  "name": "@repokit/verify",
+  "version": "0.1.0",
+  "description": "repokit verify: проверка репозитория с чистого клона",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repokit/core": "workspace:*",
+    "@repokit/scan": "workspace:*",
+    "@repokit/readme": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}

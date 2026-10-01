@@ -50,6 +50,8 @@ jobs:
         run: pnpm test
         env:
           REPOKIT_E2E_MEDIA: "1"
+          # The runner has no GPU: 3D presets are drawn by the software renderer.
+          REPOKIT_GL: swangle
       - name: Keep the frames that did not match
         if: failure()
         uses: actions/upload-artifact@v4
