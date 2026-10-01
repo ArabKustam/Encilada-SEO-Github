@@ -17,6 +17,15 @@
       "path": "packages/studio"
     },
     {
+      "path": "packages/brief"
+    },
+    {
+      "path": "packages/readme"
+    },
+    {
+      "path": "packages/preview"
+    },
+    {
       "path": "packages/cli"
     }
   ]

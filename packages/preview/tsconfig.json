@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ]
   },
   "include": [
     "src"
@@ -15,19 +19,10 @@
       "path": "../scan"
     },
     {
-      "path": "../capture"
-    },
-    {
-      "path": "../studio"
-    },
-    {
-      "path": "../brief"
-    },
-    {
       "path": "../readme"
     },
     {
-      "path": "../preview"
+      "path": "../capture"
     }
   ]
 }

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>repokit — предпросмотр README</title>
+<style>
+  :root {
+    --bg: #f4f5f8; --panel: #ffffff; --line: #dcdfe6; --text: #1b2130; --muted: #667085;
+    --accent: #3157d5; --accent-soft: #e8edff; --ok: #1a7f4b; --warn: #a15c00; --bad: #c0362c;
+    --ok-soft: #e3f5ea; --warn-soft: #fdf0d8; --bad-soft: #fde7e4; --code: #f2f4f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101319; --panel: #181c25; --line: #2b3140; --text: #e6e9f0; --muted: #98a2b3;
+      --accent: #8ea6ff; --accent-soft: #232c4d; --ok: #5fd08f; --warn: #f0b458; --bad: #ff8b80;
+      --ok-soft: #173426; --warn-soft: #3a2c12; --bad-soft: #3d1d1a; --code: #1f2430;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 14px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; font-weight: 650; }
+  .group { display: flex; align-items: center; gap: 6px; }
+  .group > span { color: var(--muted); font-size: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 5px 11px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  select { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--panel); }
+  .primary { margin-left: auto; border: 0; border-radius: 8px; padding: 7px 16px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .primary { color: #0d1020; } }
+  .primary:disabled { opacity: 0.45; cursor: default; }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 460px; }
+  .stage { overflow: auto; padding: 16px; display: flex; justify-content: center; }
+  .stage iframe { border: 1px solid var(--line); border-radius: 10px; background: #fff; height: 100%; min-height: 400px; width: 100%; max-width: 1100px; }
+  .stage.mobile iframe { width: 390px; flex: none; }
+  aside { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tabs button { flex: 1; border: 0; background: transparent; padding: 10px 6px; font-size: 13px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tabs .count { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--bad-soft); color: var(--bad); font-size: 11px; font-weight: 600; }
+  .pane { flex: 1; overflow: auto; padding: 14px 16px 24px; }
+  .pane h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
+  .pane h2:first-child { margin-top: 0; }
+  .row { padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row .head { display: flex; align-items: baseline; gap: 8px; }
+  .row .name { font-weight: 600; }
+  .row .note { color: var(--muted); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; }
+  .tag { flex: none; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9px; }
+  .tag.filled, .tag.implemented, .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.empty, .tag.mock, .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .tag.omitted, .tag.partial, .tag.unverified, .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  pre { background: var(--code); border-radius: 8px; padding: 9px 11px; overflow: auto; font: 12px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; margin: 6px 0 0; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 13px; margin-top: 4px; }
+  ul.todo { list-style: none; padding: 0; margin: 0; }
+  ul.todo li { padding: 8px 0 8px 22px; border-bottom: 1px solid var(--line); position: relative; }
+  ul.todo li::before { content: ""; position: absolute; left: 2px; top: 13px; width: 10px; height: 10px; border: 2px solid var(--muted); border-radius: 3px; }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; }
+  label small { font-weight: 400; color: var(--muted); display: block; }
+  input[type=text], textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; background: var(--panel); }
+  textarea { min-height: 70px; resize: vertical; }
+  .member { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .member input:last-of-type { grid-column: 1 / 3; }
+  .ghost { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 5px 11px; cursor: pointer; }
+  .actions { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
+  .status { color: var(--muted); font-size: 13px; }
+  .diff .add { color: var(--ok); } .diff .del { color: var(--bad); } .diff .sep { color: var(--muted); }
+  .empty-state { color: var(--muted); padding: 12px 0; }
+  dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(760px, 92vw); background: var(--panel); color: var(--text); }
+  dialog::backdrop { background: rgba(10, 14, 25, 0.5); }
+  dialog .body { padding: 18px 20px; max-height: 60vh; overflow: auto; }
+  dialog h3 { margin: 0 0 6px; }
+  dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    .stage.mobile iframe { width: min(390px, 100%); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Предпросмотр README</h1>
+  <div class="group"><span>Показать</span>
+    <div class="seg" id="source">
+      <button data-value="draft" aria-pressed="true">Черновик</button>
+      <button data-value="current" aria-pressed="false">Текущий README</button>
+    </div>
+  </div>
+  <div class="group"><span>Пресет</span><select id="preset" aria-label="Пресет оформления"></select></div>
+  <div class="group"><span>Тема</span>
+    <div class="seg" id="theme">
+      <button data-value="light" aria-pressed="true">Светлая</button>
+      <button data-value="dark" aria-pressed="false">Тёмная</button>
+    </div>
+  </div>
+  <div class="group"><span>Ширина</span>
+    <div class="seg" id="width">
+      <button data-value="desktop" aria-pressed="true">Десктоп</button>
+      <button data-value="mobile" aria-pressed="false">Телефон</button>
+    </div>
+  </div>
+  <button class="primary" id="apply">Применить…</button>
+</header>
+
+<main>
+  <div class="stage" id="stage"><iframe id="view" title="README как на GitHub"></iframe></div>
+  <aside>
+    <div class="tabs" role="tablist">
+      <button data-tab="slots" aria-selected="true">Разделы</button>
+      <button data-tab="claims" aria-selected="false">Утверждения</button>
+      <button data-tab="media" aria-selected="false">Медиа</button>
+      <button data-tab="todo" aria-selected="false">Человеку<span class="count" id="todo-count" hidden></span></button>
+      <button data-tab="fields" aria-selected="false">Поля</button>
+      <button data-tab="diff" aria-selected="false">Было/стало</button>
+    </div>
+    <div class="pane" id="pane"></div>
+  </aside>
+</main>
+
+<dialog id="confirm">
+  <div class="body">
+    <h3>Записать README.md?</h3>
+    <p class="status" id="confirm-summary"></p>
+    <pre class="diff" id="confirm-diff"></pre>
+  </div>
+  <div class="foot">
+    <button class="ghost" id="cancel">Отмена</button>
+    <button class="primary" id="confirm-apply" style="margin-left:0">Записать</button>
+  </div>
+</dialog>
+
+<script>
+const TOKEN = "__REPOKIT_TOKEN__";
+const ui = { source: "draft", theme: "light", width: "desktop", preset: null, tab: "slots" };
+let state = null;
+let fieldsDirty = false;
+
+const $ = (selector) => document.querySelector(selector);
+const el = (tag, props = {}, children = []) => {
+  const node = Object.assign(document.createElement(tag), props);
+  for (const child of [].concat(children)) node.append(child);
+  return node;
+};
+const STATUS = { filled: "готов", empty: "пусто", omitted: "пропущен", implemented: "реализовано", partial: "частично", mock: "заглушка", unverified: "не проверено" };
+const SLOT_NAMES = { header: "Шапка", hero: "Главное изображение", problem: "Проблема", solution: "Решение", features: "Возможности", demo: "Демо", architecture: "Архитектура", routes: "API и страницы", quickstart: "Быстрый старт", judges: "Для жюри", limitations: "Ограничения и планы", team: "Команда", license: "Лицензия" };
+const megabytes = (bytes) => (bytes / 1024 / 1024).toFixed(2) + " МБ";
+
+async function load() {
+  const query = ui.preset ? "?preset=" + encodeURIComponent(ui.preset) : "";
+  state = await (await fetch("/api/state" + query)).json();
+  ui.preset = state.options.preset;
+  const select = $("#preset");
+  select.replaceChildren(...state.presets.map((p) => el("option", { value: p.name, textContent: p.title + " (" + p.name + ")", selected: p.name === ui.preset, title: p.description })));
+  $("#source [data-value=current]").disabled = !state.hasReadme;
+  if (!state.hasReadme && ui.source === "current") setSegment("source", "draft");
+  const count = $("#todo-count");
+  count.hidden = state.plan.humanTodo.length === 0;
+  count.textContent = state.plan.humanTodo.length;
+  $("#apply").disabled = state.diff.added === 0 && state.diff.removed === 0;
+  refreshView();
+  if (!(ui.tab === "fields" && fieldsDirty)) renderPane();
+}
+
+function refreshView() {
+  const query = new URLSearchParams({ source: ui.source, theme: ui.theme, preset: ui.preset });
+  const frame = $("#view");
+  const scroll = frame.contentWindow && frame.contentWindow.scrollY;
+  frame.onload = () => { if (scroll) frame.contentWindow.scrollTo(0, scroll); };
+  frame.src = "/view?" + query;
+  $("#stage").classList.toggle("mobile", ui.width === "mobile");
+}
+
+function setSegment(id, value) {
+  ui[id] = value;
+  for (const button of document.querySelectorAll("#" + id + " button")) button.setAttribute("aria-pressed", String(button.dataset.value === value));
+}
+
+function row(name, status, note, extra) {
+  const head = el("div", { className: "head" }, [el("span", { className: "name", textContent: name }), el("span", { className: "tag " + status, textContent: STATUS[status] || status })]);
+  return el("div", { className: "row" }, [head, note ? el("div", { className: "note", textContent: note }) : "", extra || ""]);
+}
+
+const panes = {
+  slots() {
+    const nodes = [el("h2", { textContent: "Разделы пресета «" + ui.preset + "»" })];
+    for (const slot of state.plan.slots) nodes.push(row(SLOT_NAMES[slot.id] || slot.id, slot.status, slot.note));
+    if (state.plan.preserved.length) nodes.push(el("h2", { textContent: "Ваши разделы сохранены" }), el("div", { className: "note", textContent: state.plan.preserved.join(", ") }));
+    if (state.brief) nodes.push(el("h2", { textContent: "Критерии" }), el("div", { className: "note", textContent: state.brief.criteria + " критериев" + (state.brief.isDefaultProfile ? " — профиль по умолчанию, а не правила хакатона" : " из правил хакатона") }));
+    return nodes;
+  },
+  claims() {
+    if (!state.claims.length && !state.staleClaims.length) return [el("div", { className: "empty-state", textContent: "Утверждений нет. Выполните: repokit scan claims extract" })];
+    const nodes = [el("h2", { textContent: "Утверждения и доказательства" })];
+    for (const claim of state.claims) {
+      const evidence = claim.evidence.map((e) => el("details", {}, [el("summary", { textContent: e.file + ":" + e.lines[0] + "–" + e.lines[1] }), el("pre", { textContent: e.snippet })]));
+      nodes.push(row(claim.text, claim.status, claim.note || (claim.evidence.length ? "" : "доказательства нет — в README не попадёт"), el("div", {}, evidence)));
+    }
+    if (state.staleClaims.length) {
+      nodes.push(el("h2", { textContent: "Не прошли проверку" }));
+      for (const stale of state.staleClaims) nodes.push(row(stale.split(":")[0], "bad", stale.split(":").slice(1).join(":").trim()));
+    }
+    return nodes;
+  },
+  media() {
+    if (!state.media.length) return [el("div", { className: "empty-state", textContent: "В README нет локальных медиафайлов." })];
+    const nodes = [el("h2", { textContent: "Медиа в README" })];
+    for (const media of state.media) {
+      const heavy = media.bytes > 8 * 1024 * 1024;
+      const note = megabytes(media.bytes) + (heavy ? " — больше 8 МБ" : "") + (media.provenance ? " · создано: " + media.provenance : " · происхождение неизвестно") + (media.demoData ? " · демонстрационные данные" : "");
+      nodes.push(row(media.path, media.provenance && !heavy ? "ok" : "warn", note));
+    }
+    return nodes;
+  },
+  todo() {
+    const nodes = [el("h2", { textContent: "Решения за вами" })];
+    if (!state.plan.humanTodo.length) nodes.push(el("div", { className: "empty-state", textContent: "Ничего не осталось." }));
+    else nodes.push(el("ul", { className: "todo" }, state.plan.humanTodo.map((t) => el("li", { textContent: t.text }))));
+    if (state.plan.warnings.length) nodes.push(el("h2", { textContent: "Предупреждения" }), el("ul", { className: "todo" }, state.plan.warnings.map((w) => el("li", { textContent: w }))));
+    const broken = state.plan.problems.filter((p) => p.kind !== "fill");
+    if (broken.length) nodes.push(el("h2", { textContent: "Ошибки в черновике" }), el("ul", { className: "todo" }, broken.map((p) => el("li", { textContent: "строка " + p.line + ": " + p.message }))));
+    return nodes;
+  },
+  fields() {
+    const h = state.human;
+    const text = (id, label, hint, value) => [el("label", { htmlFor: id }, [label, el("small", { textContent: hint })]), el("input", { type: "text", id, value: value || "" })];
+    const area = (id, label, hint, value) => [el("label", { htmlFor: id }, [label, el("small", { textContent: hint })]), el("textarea", { id, value: value || "" })];
+    const team = el("div", { id: "team" });
+    const addMember = (m = {}) => team.append(el("div", { className: "member" }, [
+      el("input", { type: "text", placeholder: "Имя", value: m.name || "", ariaLabel: "Имя участника" }),
+      el("input", { type: "text", placeholder: "Роль", value: m.role || "", ariaLabel: "Роль участника" }),
+      el("input", { type: "text", placeholder: "Ссылка (https://…)", value: m.link || "", ariaLabel: "Ссылка участника" }),
+    ]));
+    (h.team && h.team.length ? h.team : [{}]).forEach(addMember);
+    const form = el("form", { id: "fields" }, [
+      el("h2", { textContent: "Поля, которые решаете вы" }),
+      ...text("title", "Название", "по умолчанию — имя проекта", h.title),
+      ...text("tagline", "Тэглайн", "одна фраза: что это и для кого", h.tagline),
+      ...area("problem", "Проблема", "какую проблему решает проект", h.problem),
+      ...area("solution", "Решение", "как проект её решает", h.solution),
+      ...text("demoUrl", "Ссылка на работающую версию", "https://…", h.demoUrl),
+      ...text("videoUrl", "Ссылка на видео", "https://…", h.videoUrl),
+      ...text("heroAlt", "Описание главного изображения", "alt-текст: что на нём видно", h.heroAlt),
+      el("label", {}, ["Команда", el("small", { textContent: "имя, роль, ссылка" })]), team,
+      el("button", { type: "button", className: "ghost", textContent: "Добавить участника", onclick: () => addMember() }),
+      ...area("roadmap", "Планы", "по одному пункту в строке", (h.roadmap || []).join("\n")),
+      ...text("skip", "Не включать разделы", "через запятую: team, demo, judges …", (h.skip || []).join(", ")),
+      el("div", { className: "actions" }, [el("button", { type: "submit", className: "primary", style: "margin-left:0", textContent: "Сохранить" }), el("span", { className: "status", id: "save-status" })]),
+    ]);
+    form.addEventListener("input", () => { fieldsDirty = true; });
+    form.addEventListener("submit", saveFields);
+    return [form];
+  },
+  diff() {
+    const nodes = [el("h2", { textContent: "Текущий README → черновик" })];
+    if (!state.diff.added && !state.diff.removed) return nodes.concat(el("div", { className: "empty-state", textContent: "README уже совпадает с черновиком." }));
+    nodes.push(el("div", { className: "note", textContent: "строк добавится " + state.diff.added + ", удалится " + state.diff.removed }), diffNode(state.diff.text));
+    return nodes;
+  },
+};
+
+function diffNode(text) {
+  const pre = el("pre", { className: "diff" });
+  for (const line of text.split("\n")) {
+    const kind = line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : line === "@@" ? "sep" : "";
+    pre.append(el("span", { className: kind, textContent: (line === "@@" ? "⋯" : line) + "\n" }));
+  }
+  return pre;
+}
+
+function renderPane() {
+  for (const button of document.querySelectorAll(".tabs button")) button.setAttribute("aria-selected", String(button.dataset.tab === ui.tab));
+  $("#pane").replaceChildren(...panes[ui.tab]().filter(Boolean));
+}
+
+async function post(path, body) {
+  const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json", "x-repokit-token": TOKEN }, body: JSON.stringify(body) });
+  return { ok: response.ok, data: await response.json().catch(() => ({})) };
+}
+
+async function saveFields(event) {
+  event.preventDefault();
+  const value = (id) => document.getElementById(id).value.trim();
+  const team = [...document.querySelectorAll("#team .member")].map((member) => {
+    const [name, role, link] = [...member.querySelectorAll("input")].map((input) => input.value.trim());
+    return name ? Object.assign({ name }, role && { role }, link && { link }) : null;
+  }).filter(Boolean);
+  const human = {
+    title: value("title"), tagline: value("tagline"), problem: value("problem"), solution: value("solution"),
+    demoUrl: value("demoUrl"), videoUrl: value("videoUrl"), heroAlt: value("heroAlt"), team,
+    roadmap: value("roadmap").split("\n").map((line) => line.trim()).filter(Boolean),
+    skip: value("skip").split(",").map((item) => item.trim()).filter(Boolean),
+  };
+  const status = $("#save-status");
+  const result = await post("/api/human", human);
+  if (result.ok) {
+    fieldsDirty = false;
+    await load();
+    // The pane was rebuilt by load(); report on the new status element.
+    const fresh = $("#save-status");
+    if (fresh) fresh.textContent = "Сохранено в .repokit/readme.human.yaml";
+  } else {
+    status.textContent = "Не сохранено: " + (result.data.errors || ["ошибка"]).join("; ");
+  }
+}
+
+for (const id of ["source", "theme", "width"]) {
+  $("#" + id).addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || button.disabled) return;
+    setSegment(id, button.dataset.value);
+    refreshView();
+  });
+}
+$("#preset").addEventListener("change", (event) => { ui.preset = event.target.value; load(); });
+document.querySelector(".tabs").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  ui.tab = button.dataset.tab;
+  renderPane();
+});
+
+$("#apply").addEventListener("click", () => {
+  const fill = state.plan.problems.filter((p) => p.kind === "fill").length;
+  $("#confirm-summary").textContent = "Пресет «" + ui.preset + "»: строк +" + state.diff.added + " −" + state.diff.removed + ". Прежняя версия сохранится в .repokit/readme.backup.md."
+    + (fill ? " Внимание: незаполненных мест — " + fill + "." : "");
+  $("#confirm-diff").replaceChildren(...diffNode(state.diff.text).childNodes);
+  $("#confirm").showModal();
+});
+$("#cancel").addEventListener("click", () => $("#confirm").close());
+$("#confirm-apply").addEventListener("click", async () => {
+  await post("/api/apply", { preset: ui.preset });
+  $("#confirm").close();
+  await load();
+});
+
+new EventSource("/events").addEventListener("change", () => load());
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "technical",
+  "title": "Технический",
+  "description": "Упор на устройство проекта: архитектура, таблица роутов, запуск и тесты.",
+  "required": [
+    "header",
+    "features",
+    "architecture",
+    "quickstart",
+    "limitations",
+    "license"
+  ]
+}

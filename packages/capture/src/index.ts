@@ -16,6 +16,7 @@ export { pointerPath, scrollDeltas, moveDuration, easeInOutCubic } from "./motio
 export { draftScenario, envReferences, loadScenario, resolveEnv } from "./scenario.js";
 export type { Scenario, Step, Viewport } from "./scenario.js";
 export type { CaptureEvent } from "./runner.js";
+export { launchBrowser } from "./session.js";
 
 const CAPTURE_DIR = "capture";
 

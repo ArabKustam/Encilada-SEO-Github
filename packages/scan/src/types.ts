@@ -90,6 +90,8 @@ export interface Claim {
   source: "readme" | "scan" | "claude";
   readmeLine?: number;
   note?: string;
+  /** Ids of criteria from brief.json that this claim supports. */
+  criteria?: string[];
 }
 
 export interface ClaimsDoc {

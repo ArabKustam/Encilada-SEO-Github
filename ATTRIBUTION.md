@@ -8,7 +8,11 @@
 |---|---|---|---|
 | [commander](https://github.com/tj/commander.js) | 15.0.0 | MIT | разбор аргументов CLI |
 | [ajv](https://github.com/ajv-validator/ajv) | 8.20.0 | MIT | валидация данных по JSON Schema |
-| [yaml](https://github.com/eemeli/yaml) | 2.9.1 | ISC | сценарии `capture` |
+| [yaml](https://github.com/eemeli/yaml) | 2.9.1 | ISC | сценарии `capture`, поля автора и словари `readme` |
+| [markdown-it](https://github.com/markdown-it/markdown-it) | 15.0.2 | MIT | рендер Markdown в `preview` |
+| [sanitize-html](https://github.com/apostrophecms/sanitize-html) | 2.17.7 | MIT | очистка HTML по правилам GitHub в `preview` |
+| [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) | 5.9.0 | MIT | стили README в `preview` |
+| [mermaid](https://github.com/mermaid-js/mermaid) | 12.0.0 | MIT | схемы в `preview` |
 | [playwright](https://github.com/microsoft/playwright) | 1.63.0 | Apache-2.0 | управление браузером при записи |
 | [react](https://github.com/facebook/react), react-dom | 19.3.0 | MIT | композиция ролика в `studio` |
 | [remotion](https://github.com/remotion-dev/remotion), @remotion/bundler, @remotion/renderer | 4.0.531 | **Remotion License** (не open source) | покадровый рендер в `studio` |

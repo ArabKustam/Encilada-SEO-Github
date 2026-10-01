@@ -1,0 +1,20 @@
+{
+  "name": "@repokit/brief",
+  "version": "0.1.0",
+  "description": "repokit brief: разбор правил хакатона и матрица критериев",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repokit/core": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}

@@ -1,0 +1,44 @@
+# Заголовки и служебные фразы README на русском.
+headings:
+  problem: Проблема
+  solution: Решение
+  features: Возможности
+  demo: Демо
+  architecture: Архитектура
+  routes: API и страницы
+  quickstart: Быстрый старт
+  judges: Для жюри
+  limitations: Ограничения и планы
+  team: Команда
+  license: Лицензия
+phrases:
+  heroAlt: "Демонстрация работы {title}"
+  demoData: Демонстрационные данные
+  partial: "частично"
+  evidence: "код"
+  liveDemo: "Открыть работающую версию"
+  watchVideo: "Смотреть видео"
+  requirements: "Потребуется"
+  install: "Установка"
+  run: "Запуск"
+  test: "Тесты"
+  architectureIntro: "Схема построена по импортам и обращениям к API в коде."
+  userNode: "Пользователь"
+  routesCount: "роутов: {n}"
+  modelsCount: "моделей: {n}"
+  method: Метод
+  path: Путь
+  where: Где в коде
+  criterion: Критерий
+  weight: Вес
+  proof: Чем подтверждается
+  defaultProfile: "Правил хакатона не было: критерии взяты из типового набора."
+  submission: "Требования к подаче"
+  mockItem: "{text} — сейчас заглушка"
+  partialItem: "{text} — реализовано частично"
+  noTests: "Автоматических тестов нет."
+  roadmap: "В планах"
+  licenseLine: "Проект распространяется по лицензии {name} — см. [{file}]({file})."
+  licenseUnknown: "Условия использования — в файле [{file}]({file})."
+  details: "Подробнее"
+  seeSection: "раздел «{name}»"

@@ -1,0 +1,44 @@
+# README headings and service phrases in English.
+headings:
+  problem: Problem
+  solution: Solution
+  features: Features
+  demo: Demo
+  architecture: Architecture
+  routes: API and pages
+  quickstart: Quick start
+  judges: For judges
+  limitations: Limitations & Roadmap
+  team: Team
+  license: License
+phrases:
+  heroAlt: "{title} in action"
+  demoData: Demo data
+  partial: "partial"
+  evidence: "code"
+  liveDemo: "Open the live version"
+  watchVideo: "Watch the video"
+  requirements: "You will need"
+  install: "Install"
+  run: "Run"
+  test: "Tests"
+  architectureIntro: "The diagram is built from imports and API calls found in the code."
+  userNode: "User"
+  routesCount: "routes: {n}"
+  modelsCount: "models: {n}"
+  method: Method
+  path: Path
+  where: Where in the code
+  criterion: Criterion
+  weight: Weight
+  proof: Evidence
+  defaultProfile: "No hackathon rules were provided: the criteria come from a typical set."
+  submission: "Submission requirements"
+  mockItem: "{text} — currently a stub"
+  partialItem: "{text} — partially implemented"
+  noTests: "There are no automated tests."
+  roadmap: "Planned"
+  licenseLine: "Released under the {name} license — see [{file}]({file})."
+  licenseUnknown: "Terms of use are in [{file}]({file})."
+  details: "Details"
+  seeSection: "section “{name}”"

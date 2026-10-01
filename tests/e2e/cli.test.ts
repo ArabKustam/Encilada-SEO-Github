@@ -50,7 +50,7 @@ describe("repokit CLI contract", () => {
   it("exits 2 on usage errors and on services that are not built yet", () => {
     expect(repokit(["scan", "audit", "--no-such-flag"]).code).toBe(2);
     expect(repokit(["scan", "audit", "--repo", join(repo, "missing")]).code).toBe(2);
-    expect(repokit(["readme", "plan"]).code).toBe(2);
+    expect(repokit(["verify", "run"]).code).toBe(2);
   });
 
   it("exits 1 when a claim marked implemented cannot be proven", () => {

@@ -80,6 +80,32 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
     expect(gif.derivedFrom).toContain(media.find((m: { path: string }) => m.path === video).sha256);
   }, 600_000);
 
+  it("puts the rendered demo into a README draft and shows it the way GitHub would", () => {
+    const planned = repokit(["readme", "plan", "--preset", "showcase", "--hero", "docs/media/hero.gif"]);
+    expect(planned.code, planned.stderr).toBe(0);
+    expect(planned.envelope.data.slots.find((s: { id: string }) => s.id === "hero")).toMatchObject({ status: "filled" });
+    // The hero was rendered by studio from a capture, so its origin is known.
+    expect(planned.envelope.warnings.filter((w: string) => w.includes("происхождение"))).toEqual([]);
+    const draft = readFileSync(join(repo, ".repokit/readme.draft.md"), "utf8");
+    expect(draft).toContain('<img src="docs/media/hero.gif" alt="Демонстрация работы');
+    // The recording was flagged as demo data in the scenario, and the README says so.
+    expect(draft).toContain("Демонстрационные данные");
+
+    const shots = repokit(["preview", "shot", "--themes", "light,dark", "--widths", "1280"]);
+    expect(shots.code, shots.stderr).toBe(0);
+    expect(shots.envelope.data.shots).toEqual([".repokit/preview/readme-draft-light-1280.png", ".repokit/preview/readme-draft-dark-1280.png"]);
+    for (const shot of shots.envelope.data.shots) expect(statSync(join(repo, shot)).size).toBeGreaterThan(20_000);
+
+    const checked = repokit(["preview", "check"]);
+    const kinds = checked.envelope.data.issues.map((i: { kind: string }) => i.kind);
+    expect(kinds).not.toContain("broken-image");
+    expect(kinds).not.toContain("mermaid");
+    // The draft still has blanks only a person can fill, so the check must fail.
+    expect(kinds).toContain("fill");
+    expect(checked.code).toBe(1);
+    expect(checked.envelope.data.firstScreen[0].images).toBeGreaterThan(0);
+  }, 300_000);
+
   it("refuses to render a preset with an empty slot", () => {
     const { code, envelope } = repokit(["studio", "render", "--preset", "laptop-orbit", "--out", "x.mp4"]);
     expect(code).toBe(2);
