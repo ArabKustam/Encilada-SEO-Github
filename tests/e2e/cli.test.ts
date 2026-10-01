@@ -16,7 +16,7 @@ function repokit(args: string[], env: NodeJS.ProcessEnv = {}) {
 }
 
 const repo = mkdtempSync(join(tmpdir(), "repokit-e2e-"));
-cpSync(join(ROOT, "examples/web-app"), repo, { recursive: true });
+cpSync(join(ROOT, "examples/web-app"), repo, { recursive: true, filter: (source) => !source.includes(".repokit") });
 afterAll(() => rmSync(repo, { recursive: true, force: true }));
 
 describe("repokit CLI contract", () => {

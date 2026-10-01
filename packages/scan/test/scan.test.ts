@@ -61,7 +61,7 @@ describe("analyze", () => {
 
 describe("claims", () => {
   const repo = mkdtempSync(join(tmpdir(), "repokit-scan-"));
-  cpSync(example("web-app"), repo, { recursive: true });
+  cpSync(example("web-app"), repo, { recursive: true, filter: (source) => !source.includes(".repokit") });
   afterAll(() => rmSync(repo, { recursive: true, force: true }));
 
   const readme = readFileSync(join(repo, "README.md"), "utf8");

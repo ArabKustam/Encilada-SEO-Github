@@ -1,0 +1,29 @@
+{
+  "name": "@repokit/studio",
+  "version": "0.1.0",
+  "description": "repokit studio: монтаж записей в оформленное видео и GIF",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@remotion/bundler": "^4.0.531",
+    "@remotion/renderer": "^4.0.531",
+    "@repokit/core": "workspace:*",
+    "commander": "^15.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.531"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

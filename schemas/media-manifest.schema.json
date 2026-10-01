@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/media-manifest",
+  "title": "MediaManifest",
+  "description": "Происхождение каждого медиафайла: откуда снят, когда, из какого сценария и из чего смонтирован.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "media"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "media": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "kind", "createdAt", "tool"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "kind": { "enum": ["video", "screenshot", "events", "render", "gif", "webp", "poster"] },
+          "createdAt": { "type": "string" },
+          "tool": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version"],
+            "properties": {
+              "name": { "type": "string" },
+              "version": { "type": "string" },
+              "browser": { "type": "string" }
+            }
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["runId", "scenario", "scenarioSha256", "baseUrl", "targetCommit", "targetDirty"],
+            "properties": {
+              "runId": { "type": "string" },
+              "scenario": { "type": "string" },
+              "scenarioSha256": { "type": "string" },
+              "baseUrl": { "type": "string" },
+              "targetCommit": { "type": ["string", "null"] },
+              "targetDirty": { "type": "boolean" }
+            }
+          },
+          "derivedFrom": { "type": "array", "items": { "type": "string" } },
+          "masks": { "type": "array", "items": { "type": "string" } },
+          "demoData": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

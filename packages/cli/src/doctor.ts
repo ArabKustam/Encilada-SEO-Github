@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import type { Command } from "commander";
-import { ExitCode, runCommand, type CommandResult } from "@repokit/core";
+import { ExitCode, findSystemBrowser, runCommand, type CommandResult } from "@repokit/core";
 
 interface Tool {
   name: string;
@@ -19,7 +19,7 @@ const MIN_NODE_MAJOR = 20;
 
 const TOOLS: Tool[] = [
   { name: "git", required: true, neededFor: "все сервисы", hint: "https://git-scm.com/downloads" },
-  { name: "ffmpeg", required: false, neededFor: "studio: кодирование видео и GIF", hint: "https://ffmpeg.org/download.html" },
+  { name: "ffmpeg", required: false, neededFor: "capture и studio: сборка видео и GIF", hint: "https://ffmpeg.org/download.html" },
   { name: "gh", required: false, neededFor: "deploy: GitHub Pages, описание и topics репозитория", hint: "https://cli.github.com" },
   { name: "python", required: false, neededFor: "запуск Python-проектов при capture и verify", hint: "https://www.python.org/downloads/" },
 ];
@@ -34,7 +34,18 @@ function probe(tool: Tool): ToolStatus {
 }
 
 function doctor(): CommandResult<{ node: string; tools: ToolStatus[] }> {
-  const tools = TOOLS.map(probe);
+  const browser = findSystemBrowser();
+  const tools = [
+    ...TOOLS.map(probe),
+    {
+      name: "chrome",
+      required: false,
+      neededFor: "capture и studio: запись и рендер",
+      hint: "установите Google Chrome или Edge, либо укажите путь в REPOKIT_BROWSER",
+      found: browser !== null,
+      version: browser,
+    },
+  ];
   const nodeOk = Number(process.versions.node.split(".")[0]) >= MIN_NODE_MAJOR;
   const missingRequired = tools.some((t) => t.required && !t.found) || !nodeOk;
   return {

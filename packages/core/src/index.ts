@@ -1,5 +1,7 @@
 export * from "./exit.js";
 export * from "./envelope.js";
 export * from "./files.js";
+export * from "./manifest.js";
 export * from "./redact.js";
 export * from "./schema.js";
+export * from "./tools.js";

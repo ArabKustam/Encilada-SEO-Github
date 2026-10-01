@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "jsx": "react-jsx"
   },
   "include": [
     "src"
@@ -10,15 +15,6 @@
   "references": [
     {
       "path": "../core"
-    },
-    {
-      "path": "../scan"
-    },
-    {
-      "path": "../capture"
-    },
-    {
-      "path": "../studio"
     }
   ]
 }

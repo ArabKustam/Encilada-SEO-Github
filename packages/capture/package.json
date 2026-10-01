@@ -1,0 +1,23 @@
+{
+  "name": "@repokit/capture",
+  "version": "0.1.0",
+  "description": "repokit capture: запись реального демо веб-приложения по сценарию",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repokit/core": "workspace:*",
+    "@repokit/scan": "workspace:*",
+    "commander": "^15.0.0",
+    "playwright": "^1.63.0",
+    "yaml": "^2.9.1"
+  }
+}

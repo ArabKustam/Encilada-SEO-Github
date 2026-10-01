@@ -1,0 +1,27 @@
+# Сценарий демо для Taskboard: добавить задачи, отметить одну выполненной,
+# взять идею из списка подсказок. Список подсказок — демонстрационные данные.
+schemaVersion: 1
+name: taskboard-demo
+baseUrl: http://127.0.0.1:8017
+start:
+  command: python -m uvicorn app.main:app --port 8017
+  readyUrl: /health
+viewport:
+  width: 1280
+  height: 720
+  deviceScaleFactor: 2
+pace: human
+demoData: true
+steps:
+  - goto: /
+  - mark: home
+  - type: { selector: "#title", text: "Record the demo" }
+  - click: "#add"
+  - type: { selector: "#title", text: "Polish the README" }
+  - press: Enter
+  - wait: 0.4
+  - click: "#tasks li:first-child .toggle"
+  - click: "#suggestions li:last-child button"
+  - click: "#add"
+  - wait: 0.6
+  - mark: tasks
