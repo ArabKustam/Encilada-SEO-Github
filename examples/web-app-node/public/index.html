@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Linkshelf</title>
+</head>
+<body>
+  <h1>Linkshelf</h1>
+  <form id="add">
+    <input id="url" type="url" placeholder="https://example.com" required>
+    <button>Save</button>
+  </form>
+  <ul id="links"></ul>
+  <script>
+    const list = document.querySelector("#links");
+    async function refresh() {
+      const links = await (await fetch("/api/links")).json();
+      list.replaceChildren(...links.map((link) => {
+        const item = document.createElement("li");
+        const anchor = document.createElement("a");
+        anchor.href = link.url;
+        anchor.textContent = link.title;
+        item.appendChild(anchor);
+        return item;
+      }));
+    }
+    document.querySelector("#add").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const url = document.querySelector("#url");
+      await fetch("/api/links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.value }) });
+      url.value = "";
+      refresh();
+    });
+    refresh();
+  </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/claims",
+  "title": "Claims",
+  "description": "Утверждения о проекте и их доказательства в коде. В README попадает только то, что здесь подтверждено.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "claims"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "status", "evidence", "source"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["implemented", "partial", "mock", "unverified"] },
+          "source": { "enum": ["readme", "scan", "claude"] },
+          "readmeLine": { "type": "integer", "minimum": 1 },
+          "note": { "type": "string" },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "lines"],
+              "properties": {
+                "file": { "type": "string", "minLength": 1 },
+                "lines": {
+                  "type": "array",
+                  "prefixItems": [{ "type": "integer", "minimum": 1 }, { "type": "integer", "minimum": 1 }],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "snippetSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

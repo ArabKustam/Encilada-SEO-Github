@@ -1,0 +1,21 @@
+{
+  "name": "repokit-monorepo",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "test": "pnpm build && vitest run",
+    "repokit": "node packages/cli/dist/bin.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

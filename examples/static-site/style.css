@@ -1,0 +1,7 @@
+body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1b2733; }
+header { display: flex; justify-content: space-between; align-items: baseline; }
+nav a { margin-left: 1rem; }
+.lead { color: #4a5b6b; }
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #d8e0e7; }
+button { padding: 0.5rem 1rem; border: 1px solid #1b2733; background: #fff; border-radius: 6px; cursor: pointer; }

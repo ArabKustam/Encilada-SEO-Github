@@ -1,0 +1,20 @@
+{
+  "name": "@repokit/core",
+  "version": "0.1.0",
+  "description": "repokit: общий контракт CLI, схемы, маскирование секретов",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "commander": "^15.0.0"
+  }
+}

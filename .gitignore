@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.repokit/
+__pycache__/
+.pytest_cache/
+.venv/
+.env
