@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +9,8 @@ import { aspectMismatch, cameraAtFrame, fitMedia, fovForAspect, parseAspect } fr
 import { listPresets, resolvePreset } from "../src/presets.js";
 
 const FIXTURES = fileURLToPath(new URL("../../../tests/fixtures/slots/", import.meta.url));
+// Reading media dimensions needs ffprobe, which plain CI runners do not have.
+const hasFfprobe = spawnSync("ffprobe", ["-version"], { stdio: "ignore" }).status === 0;
 
 describe("preset definitions", () => {
   const presets = listPresets();
@@ -66,7 +69,7 @@ describe("path math", () => {
   });
 });
 
-describe("resolvePreset", () => {
+describe.skipIf(!hasFfprobe)("resolvePreset", () => {
   const repo = mkdtempSync(join(tmpdir(), "repokit-presets-"));
   copyFileSync(join(FIXTURES, "pattern-16x10.png"), join(repo, "screen.png"));
   copyFileSync(join(FIXTURES, "pattern-phone.png"), join(repo, "phone.png"));
