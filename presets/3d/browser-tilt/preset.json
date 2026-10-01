@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "browser-tilt",
+  "title": "Окно браузера с наклоном",
+  "description": "Плоское окно браузера в перспективе; камера сдвигается вбок, фон смещается с параллаксом.",
+  "durationInFrames": 150,
+  "fps": 30,
+  "aspectRatios": ["16:9", "4:3", "1:1"],
+  "slots": [
+    {
+      "id": "main",
+      "type": "any",
+      "mesh": "browser-viewport",
+      "fit": "cover",
+      "aspect": 1.6,
+      "description": "Содержимое окна, 16:10. Подойдёт запись или скриншот страницы."
+    }
+  ],
+  "camera": {
+    "fov": 30,
+    "keyframes": [
+      { "frame": 0, "position": [-1.1, 0.25, 8.4], "target": [0, 0, 0] },
+      { "frame": 150, "position": [1.1, 0.1, 7.9], "target": [0, 0, 0] }
+    ]
+  },
+  "lights": [
+    { "type": "ambient", "intensity": 1.5 },
+    { "type": "directional", "intensity": 1.6, "position": [2, 5, 6] }
+  ],
+  "background": "linear-gradient(150deg, #eef1ff 0%, #f8eef6 100%)"
+}

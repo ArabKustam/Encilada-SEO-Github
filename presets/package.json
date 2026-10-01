@@ -1,0 +1,37 @@
+{
+  "name": "@repokit/presets",
+  "version": "0.1.0",
+  "description": "repokit: 3D-пресеты для подачи скриншотов и записей",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/3d/index.d.ts",
+      "default": "./dist/3d/index.js"
+    },
+    "./types": {
+      "types": "./dist/3d/_engine/types.d.ts",
+      "default": "./dist/3d/_engine/types.js"
+    },
+    "./path": {
+      "types": "./dist/3d/_engine/path.d.ts",
+      "default": "./dist/3d/_engine/path.js"
+    }
+  },
+  "files": [
+    "dist",
+    "3d"
+  ],
+  "dependencies": {
+    "@react-three/fiber": "^9.8.1",
+    "@remotion/three": "4.0.531",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "4.0.531",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/three": "^0.186.0"
+  }
+}

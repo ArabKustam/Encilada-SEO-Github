@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "name": "laptop-orbit",
+  "title": "Ноутбук с орбитальной камерой",
+  "description": "Открытый ноутбук на мягком фоне; камера плавно облетает его слева направо.",
+  "durationInFrames": 180,
+  "fps": 30,
+  "aspectRatios": ["16:9", "4:3", "1:1"],
+  "slots": [
+    {
+      "id": "main",
+      "type": "any",
+      "mesh": "laptop-screen",
+      "fit": "cover",
+      "aspect": 1.6,
+      "description": "Экран ноутбука, 16:10. Подойдёт запись или скриншот десктопной версии."
+    }
+  ],
+  "camera": {
+    "fov": 32,
+    "keyframes": [
+      { "frame": 0, "position": [-2.9, 1.5, 5.1], "target": [0, 0.35, -0.2] },
+      { "frame": 90, "position": [0, 1.8, 6.0], "target": [0, 0.35, -0.2] },
+      { "frame": 180, "position": [2.9, 1.5, 5.1], "target": [0, 0.35, -0.2] }
+    ]
+  },
+  "lights": [
+    { "type": "ambient", "intensity": 1.1 },
+    { "type": "directional", "intensity": 2.2, "position": [4, 6, 5] },
+    { "type": "directional", "intensity": 0.9, "position": [-5, 3, 2], "color": "#cdd8ff" }
+  ],
+  "background": "radial-gradient(120% 120% at 15% 10%, #dfe8ff 0%, rgba(223,232,255,0) 55%), radial-gradient(110% 110% at 90% 95%, #ffe4ef 0%, rgba(255,228,239,0) 55%), #f1f2f7"
+}

@@ -66,6 +66,26 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
     expect(gif.derivedFrom).toContain(source.sha256);
   }, 600_000);
 
+  it("puts the recording on a 3D device, keeping the link to its source", () => {
+    const { code, envelope, stderr } = repokit([
+      "studio", "render", "--preset", "browser-tilt", "--slot", `main=${video}`, "--width", "480", "--gl", "swangle",
+      "--out", "docs/media/hero-3d.mp4", "--gif",
+    ]);
+    expect(code, stderr).toBe(0);
+    expect(envelope.data).toMatchObject({ mode: "preset", preset: "browser-tilt" });
+    // The only warning allowed is about fitting 16:9 footage onto a 16:10 screen — not about unknown origin.
+    expect(envelope.warnings.every((w: string) => w.includes("пропорции"))).toBe(true);
+    const media = manifest().media;
+    const gif = media.find((m: { path: string }) => m.path === "docs/media/hero-3d.gif");
+    expect(gif.derivedFrom).toContain(media.find((m: { path: string }) => m.path === video).sha256);
+  }, 600_000);
+
+  it("refuses to render a preset with an empty slot", () => {
+    const { code, envelope } = repokit(["studio", "render", "--preset", "laptop-orbit", "--out", "x.mp4"]);
+    expect(code).toBe(2);
+    expect(envelope.error.message).toContain("Слоты без медиа");
+  });
+
   it("warns when a source did not come from capture", () => {
     copyFileSync(join(repo, "docs/media/hero.mp4"), join(repo, "stranger.mp4"));
     rmSync(join(repo, ".repokit/media.manifest.json"));

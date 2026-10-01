@@ -221,14 +221,17 @@ async function shotsCommand(flags: ShotsFlags): Promise<CommandResult<{ shots: s
   const outDir = flags.out ? resolve(repo, flags.out) : join(repo, REPOKIT_DIR, CAPTURE_DIR, `shots-${newRunId()}`);
   mkdirSync(join(outDir, "shots"), { recursive: true });
   const written: string[] = [];
-  const app = await startApp(scenario, repo);
   let browserLabel = "";
+  let reusedRunningApp = false;
+  const { browser, label } = await launchBrowser();
+  browserLabel = label;
   try {
-    const { browser, label } = await launchBrowser();
-    browserLabel = label;
-    try {
-      for (const size of sizes) {
-        for (const theme of themes as ("light" | "dark")[]) {
+    for (const size of sizes) {
+      for (const theme of themes as ("light" | "dark")[]) {
+        // A fresh app per combination, so every set of screenshots starts from the same state.
+        const app = await startApp(scenario, repo);
+        reusedRunningApp ||= !app.started;
+        try {
           const viewport = SIZES[size] ?? viewportOf(scenario);
           const context = await openContext(browser, scenario, repo, viewport, theme);
           const page = await context.newPage();
@@ -242,13 +245,13 @@ async function shotsCommand(flags: ShotsFlags): Promise<CommandResult<{ shots: s
             },
           });
           await context.close();
+        } finally {
+          app.stop();
         }
       }
-    } finally {
-      await browser.close();
     }
   } finally {
-    app.stop();
+    await browser.close();
   }
 
   const head = gitHead(repo);
@@ -273,7 +276,10 @@ async function shotsCommand(flags: ShotsFlags): Promise<CommandResult<{ shots: s
   const paths = written.map((abs) => repoRelative(repo, abs));
   return {
     data: { shots: paths },
-    warnings: themes.includes("dark") ? ["тёмная тема снимается через prefers-color-scheme: если приложение её не поддерживает, кадры совпадут со светлыми"] : [],
+    warnings: [
+      ...(themes.includes("dark") ? ["тёмная тема снимается через prefers-color-scheme: если приложение её не поддерживает, кадры совпадут со светлыми"] : []),
+      ...(reusedRunningApp ? ["приложение уже было запущено — repokit его не перезапускал, данные от предыдущих прогонов могли накопиться"] : []),
+    ],
     summary: [`скриншотов: ${paths.length} → ${repoRelative(repo, join(outDir, "shots"))}`],
   };
 }

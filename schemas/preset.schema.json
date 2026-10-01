@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/preset",
+  "title": "Preset3D",
+  "description": "Описание 3D-пресета: слоты для медиа, камера, свет, фон.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "title", "description", "durationInFrames", "fps", "aspectRatios", "slots", "camera", "lights", "background"],
+  "$defs": {
+    "vec3": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 }
+  },
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "Совпадает с именем папки пресета" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "durationInFrames": { "type": "integer", "minimum": 1 },
+    "fps": { "type": "integer", "minimum": 10, "maximum": 60 },
+    "aspectRatios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$" },
+      "description": "Поддерживаемые соотношения сторон вывода; первое — то, под которое поставлена камера"
+    },
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "mesh", "fit", "aspect"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "type": { "enum": ["image", "video", "any"] },
+          "mesh": { "type": "string" },
+          "fit": { "enum": ["cover", "contain"] },
+          "aspect": { "type": "number", "exclusiveMinimum": 0, "description": "Ширина экрана, делённая на высоту" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fov", "keyframes"],
+      "properties": {
+        "fov": { "type": "number", "minimum": 5, "maximum": 120 },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["frame", "position", "target"],
+            "properties": {
+              "frame": { "type": "integer", "minimum": 0 },
+              "position": { "$ref": "#/$defs/vec3" },
+              "target": { "$ref": "#/$defs/vec3" }
+            }
+          }
+        }
+      }
+    },
+    "lights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "intensity"],
+        "properties": {
+          "type": { "enum": ["ambient", "directional", "point"] },
+          "intensity": { "type": "number", "minimum": 0 },
+          "position": { "$ref": "#/$defs/vec3" },
+          "color": { "type": "string" }
+        }
+      }
+    },
+    "background": { "type": "string", "description": "CSS-фон за 3D-сценой" }
+  }
+}

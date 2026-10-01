@@ -11,6 +11,9 @@
       "path": "packages/capture"
     },
     {
+      "path": "presets"
+    },
+    {
       "path": "packages/studio"
     },
     {
