@@ -212,7 +212,11 @@
             }
           },
           "cursor": {
-            "type": "boolean"
+            "description": "false — без курсора; true — стрелка; имя — стиль курсора",
+            "oneOf": [
+              { "type": "boolean" },
+              { "enum": ["arrow", "hand", "dot", "ring"] }
+            ]
           },
           "effects": {
             "type": "object",

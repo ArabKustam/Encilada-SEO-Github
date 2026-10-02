@@ -16,9 +16,11 @@ import { GENERIC_ICONS } from "./icons.js";
 import { findPreset, listPresets, resolvePreset } from "./presets.js";
 import { glBackend, renderStills, renderVideo, type RenderJob } from "./render.js";
 import { COMPOSITION_ID, DECK_COMPOSITION_ID, STYLE_NAMES, type StyleName } from "./remotion/props.js";
-import { BACKGROUND_NAMES, loadScene, resolveScene, starterScene, type BackgroundName } from "./scene.js";
+import { BACKGROUND_NAMES, loadScene, resolveScene, starterScene, type BackgroundName, type Scene } from "./scene.js";
+import { buildFromTemplate, listSceneTemplates } from "./templates.js";
 import { captureRunDir, loadTimeline, resolveTimeline, timelineFromCapture, type Timeline } from "./timeline.js";
 
+export { buildFromTemplate, listSceneTemplates } from "./templates.js";
 export { buildCamera, cameraAt, cursorAt, ripplesAt } from "./camera.js";
 export { soundArgs } from "./audio.js";
 export { deckFromFacts, imagesToPdf, loadDeck, resolveDeck } from "./deck.js";
@@ -382,6 +384,49 @@ function presetsPreview(name: string): CommandResult<PresetSummary> {
   };
 }
 
+interface SceneMakeFlags extends CommonFlags {
+  template?: string;
+  pages?: string;
+  device: string;
+  background: string;
+  hold: string;
+  move: string;
+  out: string;
+  force?: boolean;
+}
+
+function sceneTemplates(): CommandResult<{ templates: { name: string; title: string; description: string; pages: string }[] }> {
+  const templates = listSceneTemplates().map((t) => ({ name: t.name, title: t.title, description: t.description, pages: t.minPages === t.maxPages ? String(t.minPages) : `${t.minPages}–${t.maxPages}` }));
+  return { data: { templates }, summary: templates.map((t) => `${t.name} — ${t.title}: ${t.description}. Страниц: ${t.pages}`) };
+}
+
+async function sceneMake(flags: SceneMakeFlags): Promise<CommandResult<{ file: string; template: string; scene: Scene }>> {
+  const repo = resolveRepo(flags.repo);
+  if (!flags.template) throw new UsageError(`Укажите шаблон: --template ${listSceneTemplates().map((t) => t.name).join(" | ")}`);
+  if (!STAGE_DEVICES.includes(flags.device as StageDevice)) throw new UsageError(`--device: ожидается одно из ${STAGE_DEVICES.join(", ")}`);
+  if (!BACKGROUND_NAMES.includes(flags.background as BackgroundName)) throw new UsageError(`--background: ожидается одно из ${BACKGROUND_NAMES.join(", ")}`);
+  const hold = Number(flags.hold);
+  const move = Number(flags.move);
+  if (!(hold >= 0.5 && hold <= 10) || !(move >= 0.3 && move <= 4)) throw new UsageError("--hold: от 0.5 до 10 секунд; --move: от 0.3 до 4 секунд");
+  const pages = (flags.pages ?? "").split(",").map((p) => p.trim().split("\\").join("/")).filter(Boolean);
+  const target = resolve(repo, flags.out);
+  if (existsSync(target) && !flags.force) throw new UsageError(`${flags.out} уже существует. Перезаписать: --force`);
+  const scene = buildFromTemplate(flags.template, { pages, device: flags.device as StageDevice, background: flags.background as BackgroundName, hold, move });
+  requireTool("ffprobe");
+  const { warnings } = await resolveScene(repo, scene);
+  if (!flags.dryRun) writeFileSync(target, JSON.stringify(scene, null, 2) + "\n");
+  return {
+    data: { file: repoRelative(repo, target), template: flags.template, scene },
+    warnings,
+    summary: [
+      `${flags.dryRun ? "dry-run: была бы создана" : "создана"} сцена ${repoRelative(repo, target)} по шаблону «${flags.template}»: страниц ${pages.length}, ${scene.output.duration} с`,
+      "это обычная сцена: позиции, повороты, камеру и длительность можно править в файле",
+      `посмотреть кадр: repokit studio still --scene ${flags.out} --at 1 --out .repokit/out/look.png`,
+      `рендер: repokit studio render --scene ${flags.out} --out docs/media/pages.mp4 --gif`,
+    ],
+  };
+}
+
 interface SceneInitFlags extends CommonFlags {
   capture: string;
   media?: string;
@@ -593,6 +638,18 @@ export function registerStudio(program: Command): void {
     .option("--out <file>", "куда сохранить сцену", "demo.scene.json")
     .option("--force", "перезаписать существующий файл")
     .action((flags: SceneInitFlags) => runCommand("studio", "scene init", flags, () => sceneInit(flags)));
+  jsonOnly(scene.command("templates").description("готовые постановки для нескольких страниц: карусель, стопка, смена страниц, стена, ноутбук и телефон"))
+    .action((flags: { json?: boolean }) => runCommand("studio", "scene templates", flags, sceneTemplates));
+  commonFlags(scene.command("make").description("собрать сцену по шаблону из скриншотов страниц"))
+    .option("--template <name>", "шаблон; см. studio scene templates")
+    .option("--pages <files>", "скриншоты или записи страниц через запятую, в порядке показа")
+    .option("--device <name>", `устройство: ${STAGE_DEVICES.join(", ")}`, "browser")
+    .option("--background <name>", `фон: ${BACKGROUND_NAMES.join(", ")}`, "light")
+    .option("--hold <sec>", "сколько секунд страница стоит впереди", "1.8")
+    .option("--move <sec>", "сколько секунд длится смена страницы", "0.9")
+    .option("--out <file>", "куда сохранить сцену", "pages.scene.json")
+    .option("--force", "перезаписать существующий файл")
+    .action((flags: SceneMakeFlags) => runCommand("studio", "scene make", flags, () => sceneMake(flags)));
   commonFlags(scene.command("validate").description("проверить сцену: схема, файлы, длительность, ссылки на объекты"))
     .option("--scene <file>", "файл сцены")
     .action((flags: SourceFlags) => runCommand("studio", "scene validate", flags, () => sceneValidate(flags)));

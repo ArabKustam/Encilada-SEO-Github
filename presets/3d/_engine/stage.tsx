@@ -9,7 +9,7 @@ import { Phone, PHONE_SCREEN } from "../phone-float/Scene.js";
 import { FrameSync, MediaMaterial, RoundedSlab, roundedRect, SoftShadow, useImageTexture, useVideoFrameTexture } from "./engine.js";
 import { EASE, popLift, segmentAt, SPARK_SECONDS, sparkAt, sparkBurst, transformAt } from "./motion.js";
 import { fitMedia } from "./path.js";
-import type { CameraFocus, CameraKey, MediaBox, StageCard, StageEffect, StageLink, StageObject, StageProps } from "./stage-types.js";
+import type { CursorStyle, CameraFocus, CameraKey, MediaBox, StageCard, StageEffect, StageLink, StageObject, StageProps } from "./stage-types.js";
 
 /** What the camera needs to know about a screen or a card in order to aim at it. */
 interface SurfaceHandle {
@@ -53,29 +53,88 @@ function patchGeometry(cx: number, cy: number, width: number, height: number, ra
   return geometry;
 }
 
-/** The pointer as one textured plane: an original arrow, white outline and soft shadow baked in. */
-function cursorTexture(): THREE.CanvasTexture {
+/**
+ * Where each pointer's hot spot sits in its 24-unit drawing box: the arrow's tip, the hand's fingertip,
+ * the centre of a dot or a ring.
+ */
+const CURSOR_HOT_SPOT: Record<CursorStyle, [number, number]> = { arrow: [4, 2], hand: [9.5, 2.5], dot: [12, 12], ring: [12, 12] };
+
+/** The pointer as one textured plane, outline and soft shadow baked in. All shapes are drawn here, not copied from any system. */
+function cursorTexture(style: CursorStyle): THREE.CanvasTexture {
   const scale = 8;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 32 * scale;
   const context = canvas.getContext("2d")!;
-  // The arrow lives in a 24-unit box with its tip at (4, 2); the canvas adds a 4-unit margin for outline and shadow.
-  const points: [number, number][] = [[4, 2], [4, 19.5], [8.6, 15.4], [11.7, 22], [14.6, 20.7], [11.6, 14.2], [17.8, 14.2]];
+  // Shapes live in a 24-unit box; the canvas adds a 4-unit margin for outline and shadow.
   context.scale(scale, scale);
   context.translate(4, 4);
-  context.beginPath();
-  points.forEach(([x, y], index) => (index === 0 ? context.moveTo(x, y) : context.lineTo(x, y)));
-  context.closePath();
   context.lineJoin = "round";
-  context.shadowColor = "rgba(0, 0, 0, 0.35)";
-  context.shadowBlur = 2.5 * scale;
-  context.shadowOffsetY = 1 * scale;
-  context.strokeStyle = "#ffffff";
-  context.lineWidth = 2.4;
-  context.stroke();
-  context.shadowColor = "transparent";
-  context.fillStyle = "#111111";
-  context.fill();
+  context.lineCap = "round";
+  const shadow = (on: boolean) => {
+    context.shadowColor = on ? "rgba(0, 0, 0, 0.35)" : "transparent";
+    context.shadowBlur = on ? 2.5 * scale : 0;
+    context.shadowOffsetY = on ? 1 * scale : 0;
+  };
+  if (style === "dot") {
+    context.beginPath();
+    context.arc(12, 12, 6.5, 0, Math.PI * 2);
+    shadow(true);
+    context.fillStyle = "rgba(255, 255, 255, 0.96)";
+    context.fill();
+    shadow(false);
+    context.beginPath();
+    context.arc(12, 12, 4.4, 0, Math.PI * 2);
+    context.fillStyle = "#2f6feb";
+    context.fill();
+  } else if (style === "ring") {
+    context.beginPath();
+    context.arc(12, 12, 8, 0, Math.PI * 2);
+    shadow(true);
+    context.strokeStyle = "#ffffff";
+    context.lineWidth = 4.2;
+    context.stroke();
+    shadow(false);
+    context.strokeStyle = "#111111";
+    context.lineWidth = 2;
+    context.stroke();
+    context.beginPath();
+    context.arc(12, 12, 1.6, 0, Math.PI * 2);
+    context.fillStyle = "#111111";
+    context.fill();
+  } else if (style === "hand") {
+    // A pointing hand built from rounded bars: index finger up, three folded fingers, palm and thumb.
+    const bar = (x: number, y: number, w: number, h: number, r: number) => context.roundRect(x, y, w, h, r);
+    context.beginPath();
+    bar(7.6, 2.5, 3.8, 13, 1.9);
+    bar(11.2, 8.6, 3.4, 8, 1.7);
+    bar(14.4, 9.4, 3.3, 8, 1.65);
+    bar(17.5, 10.6, 3, 7.5, 1.5);
+    bar(7.6, 12, 12.9, 10, 3.6);
+    context.moveTo(8.2, 15.5);
+    context.lineTo(4.4, 12.6);
+    context.lineTo(3.2, 14.6);
+    context.lineTo(8.4, 20.4);
+    context.closePath();
+    shadow(true);
+    context.strokeStyle = "#111111";
+    context.lineWidth = 2.2;
+    context.stroke();
+    shadow(false);
+    context.fillStyle = "#ffffff";
+    context.fill();
+  } else {
+    const points: [number, number][] = [[4, 2], [4, 19.5], [8.6, 15.4], [11.7, 22], [14.6, 20.7], [11.6, 14.2], [17.8, 14.2]];
+    context.beginPath();
+    points.forEach(([x, y], index) => (index === 0 ? context.moveTo(x, y) : context.lineTo(x, y)));
+    context.closePath();
+    shadow(true);
+    context.strokeStyle = "#ffffff";
+    context.lineWidth = 2.4;
+    context.stroke();
+    shadow(false);
+    context.fillStyle = "#111111";
+    context.fill();
+  }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
@@ -141,9 +200,9 @@ const Layers: FC<LayersProps> = ({ object, effects, texture, width, aspect, radi
       uvOf,
       backing: new THREE.ShapeGeometry(roundedRect(width, height, radius), 12),
       page: patchGeometry(0, 0, planeWidth, planeHeight, full ? radius : 0, uvOf),
-      cursor: cursorTexture(),
+      cursor: cursorTexture(object.cursorStyle ?? "arrow"),
     };
-  }, [width, height, radius, unit, planeWidth, planeHeight, fit.uvWidth, fit.uvHeight, fit.planeWidth, fit.planeHeight, media.viewWidth, media.viewHeight]);
+  }, [width, height, radius, unit, planeWidth, planeHeight, fit.uvWidth, fit.uvHeight, fit.planeWidth, fit.planeHeight, media.viewWidth, media.viewHeight, object.cursorStyle]);
 
   // Elements that lift off the screen: clicked ones (automatic) and those the scene asks for explicitly.
   const pops = useMemo(() => {
@@ -201,6 +260,7 @@ const Layers: FC<LayersProps> = ({ object, effects, texture, width, aspect, radi
   const pressed = object.clicks.some((c) => t >= c.t && t - c.t < 0.14);
   /** Scene units per unit of the cursor's 24-unit drawing box. */
   const cursorUnit = (CURSOR_PIXELS * unit) / 24;
+  const hotSpot = CURSOR_HOT_SPOT[object.cursorStyle ?? "arrow"];
 
   return (
     <group
@@ -265,7 +325,7 @@ const Layers: FC<LayersProps> = ({ object, effects, texture, width, aspect, radi
 
       {cursor && (
         // One plane, drawn last and without depth testing: nothing can flicker through it.
-        <mesh position={[cursor[0] + 8 * cursorUnit, cursor[1] - 10 * cursorUnit, 0.014 + highest]} scale={32 * cursorUnit * (pressed ? 0.9 : 1)} renderOrder={50}>
+        <mesh position={[cursor[0] + (12 - hotSpot[0]) * cursorUnit, cursor[1] - (12 - hotSpot[1]) * cursorUnit, 0.014 + highest]} scale={32 * cursorUnit * (pressed ? 0.9 : 1)} renderOrder={50}>
           <planeGeometry args={[1, 1]} />
           <meshBasicMaterial map={geometry.cursor} transparent depthTest={false} depthWrite={false} toneMapped={false} />
         </mesh>

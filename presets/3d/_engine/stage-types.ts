@@ -22,6 +22,9 @@ export type StageMedia = {
   playbackRate: number;
 };
 
+export const CURSOR_STYLES = ["arrow", "hand", "dot", "ring"] as const;
+export type CursorStyle = (typeof CURSOR_STYLES)[number];
+
 export type StageClick = { t: number; x: number; y: number; box?: MediaBox };
 
 export type StageObject = {
@@ -35,6 +38,8 @@ export type StageObject = {
   keyframes: TransformKey[];
   /** Pointer positions over time, in media coordinates; empty when there is no cursor to show. */
   cursor: { t: number; x: number; y: number }[];
+  /** How the pointer is drawn; an arrow when not set. */
+  cursorStyle?: CursorStyle;
   clicks: StageClick[];
   effects: { ripple: boolean; sparks: boolean; popOut: boolean };
 };

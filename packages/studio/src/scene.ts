@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname } from "node:path";
 import { assertValid, findProvenance, insideRepo, runTool, UsageError } from "@repokit/core";
 import type { Ease, TransformKey } from "@repokit/presets/motion";
-import type { CameraKey, MediaBox, MediaPoint, StageCard, StageDevice, StageEffect, StageLink, StageObject, StageProps } from "@repokit/presets/stage-types";
+import type { CameraKey, CursorStyle, MediaBox, MediaPoint, StageCard, StageDevice, StageEffect, StageLink, StageObject, StageProps } from "@repokit/presets/stage-types";
 import type { Vec3 } from "@repokit/presets/types";
 import { buildCamera, type TimedEvent } from "./camera.js";
 import { resolveIcon } from "./icons.js";
@@ -25,7 +25,8 @@ export interface Scene {
     rotation?: Vec3;
     scale?: number;
     keyframes?: TransformKey[];
-    cursor?: boolean;
+    /** `false` hides the pointer; a name chooses how it is drawn. */
+    cursor?: boolean | CursorStyle;
     effects?: { ripple?: boolean; sparks?: boolean; popOut?: boolean };
   }[];
   camera?: {
@@ -181,6 +182,7 @@ export async function resolveScene(repo: string, scene: Scene): Promise<Resolved
       base: { position: item.position ?? [0, 0, 0], rotation: item.rotation ?? [0, 0, 0], scale: item.scale ?? 1 },
       keyframes: item.keyframes ?? [],
       cursor: item.cursor === false ? [] : located.filter((e) => ["move", "click", "hover"].includes(e.type)).map((e) => ({ t: onScene(e.t), x: e.x!, y: e.y! })),
+      ...(typeof item.cursor === "string" ? { cursorStyle: item.cursor } : {}),
       clicks: located.filter((e) => e.type === "click").map((e) => ({ t: onScene(e.t), x: e.x!, y: e.y!, ...(e.box ? { box: [e.box.x, e.box.y, e.box.width, e.box.height] as MediaBox } : {}) })),
       effects: { ripple: item.effects?.ripple ?? Boolean(events), sparks: item.effects?.sparks ?? false, popOut: item.effects?.popOut ?? false },
     });

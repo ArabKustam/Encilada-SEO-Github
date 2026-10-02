@@ -263,7 +263,9 @@ export function auditReadme(markdown: string, ctx: Context, layout: Layout): Aud
     const columns = l.text.split("|").filter((cell) => cell.trim()).length;
     let rows = 0;
     while (body[index + 1 + rows]?.text.includes("|") && body[index + 1 + rows].text.trim()) rows++;
-    if (rows > 0 && rows < 3 && columns <= 2) tableProblems.push(`строка ${l.number}: таблица из ${rows} строк — хватит списка`);
+    // A table that holds pictures is a grid for laying them out side by side, not data.
+    const grid = /!\[|<img/.test(body[index + 1]?.text ?? "");
+    if (rows > 0 && rows < 3 && columns <= 2 && !grid) tableProblems.push(`строка ${l.number}: таблица из ${rows} строк — хватит списка`);
     if (columns > LIMITS.tableColumns) tableProblems.push(`строка ${l.number}: ${columns} колонок — на телефоне не поместится`);
   });
   add("formatting", "tables", tableProblems.length === 0, tableProblems.length === 0 ? "таблицы к месту" : tableProblems.join("; "), { fix: "edit" });

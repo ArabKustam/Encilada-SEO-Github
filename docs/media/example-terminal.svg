@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="795" height="184" viewBox="0 0 795 184" role="img" aria-label="python wordfreq.py README.md -n 5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14">
+  <title>python wordfreq.py README.md -n 5</title>
+  <rect x="0.5" y="0.5" width="794" height="183" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+  <path d="M0.5 8.5a8 8 0 0 1 8-8h778a8 8 0 0 1 8 8v26h-794z" fill="#f6f8fa" stroke="#d0d7de"/>
+  <circle cx="20" cy="17.5" r="5.5" fill="#d0d7de"/>
+  <circle cx="38" cy="17.5" r="5.5" fill="#d0d7de"/>
+  <circle cx="56" cy="17.5" r="5.5" fill="#d0d7de"/>
+  <text x="397.5" y="22" fill="#656d76" text-anchor="middle" font-size="12">python wordfreq.py README.md -n 5</text>
+  <text x="18" y="63" fill="#1f2328" xml:space="preserve"><tspan fill="#1a7f37">$</tspan> python wordfreq.py README.md -n 5</text>
+  <text x="18" y="83" fill="#1f2328" xml:space="preserve">     2  wordfreq</text>
+  <text x="18" y="103" fill="#1f2328" xml:space="preserve">     2  words</text>
+  <text x="18" y="123" fill="#1f2328" xml:space="preserve">     2  a</text>
+  <text x="18" y="143" fill="#1f2328" xml:space="preserve">     2  file</text>
+  <text x="18" y="163" fill="#1f2328" xml:space="preserve">     1  count</text>
+</svg>
