@@ -8,8 +8,11 @@ import {
 } from "@repokit/core";
 import { STAGE_COMPOSITION_ID, STAGE_DEVICES, type StageDevice } from "@repokit/presets/stage-types";
 import { PRESET_COMPOSITION_ID, type PresetDefinition } from "@repokit/presets/types";
+import { addSound, encodeWebm, hasSound, SOUND_DEFAULTS, type SoundTrack } from "./audio.js";
 import { deckFromFacts, DECK_SIZES, imagesToPdf, loadDeck, resolveDeck, type Deck, type DeckKind } from "./deck.js";
 import { DEFAULT_GIF_BUDGET_BYTES, encodeGif, encodePoster, encodeWebp, type GifResult } from "./encode.js";
+import { explainScene } from "./explain.js";
+import { GENERIC_ICONS } from "./icons.js";
 import { findPreset, listPresets, resolvePreset } from "./presets.js";
 import { glBackend, renderStills, renderVideo, type RenderJob } from "./render.js";
 import { COMPOSITION_ID, DECK_COMPOSITION_ID, STYLE_NAMES, type StyleName } from "./remotion/props.js";
@@ -17,9 +20,12 @@ import { BACKGROUND_NAMES, loadScene, resolveScene, starterScene, type Backgroun
 import { captureRunDir, loadTimeline, resolveTimeline, timelineFromCapture, type Timeline } from "./timeline.js";
 
 export { buildCamera, cameraAt, cursorAt, ripplesAt } from "./camera.js";
+export { soundArgs } from "./audio.js";
 export { deckFromFacts, imagesToPdf, loadDeck, resolveDeck } from "./deck.js";
 export type { Deck } from "./deck.js";
 export { gifLadder } from "./encode.js";
+export { explainScene } from "./explain.js";
+export { GENERIC_ICONS, resolveIcon } from "./icons.js";
 export { findPreset, listPresets, resolvePreset } from "./presets.js";
 export { glBackend, renderStills, renderVideo } from "./render.js";
 export type { RenderJob } from "./render.js";
@@ -58,6 +64,10 @@ interface RenderFlags extends SourceFlags {
   title?: string;
   gif?: boolean;
   webp?: boolean;
+  webm?: boolean;
+  clickSounds?: boolean;
+  music?: string;
+  musicVolume?: string;
   gifBudgetMb: string;
 }
 
@@ -90,6 +100,10 @@ interface Plan {
   artifacts: Artifact[];
   /** Hashes for `derivedFrom`, beyond the media files themselves. */
   recipeSha256: string;
+  /** Moments of clicks in the output, seconds; the sound track is built from them. */
+  clickTimes: number[];
+  /** Sound settings written in the scene file, if any. */
+  audio?: { clicks?: boolean; clickVolume?: number; music?: string; musicVolume?: number };
   description: string;
   timeline?: Timeline;
   preset?: string;
@@ -128,6 +142,7 @@ async function planPreset(repo: string, flags: SourceFlags): Promise<Plan> {
     warnings,
     artifacts: [],
     recipeSha256: sha256(JSON.stringify({ preset: props.preset, width: props.width, height: props.height })),
+    clickTimes: [],
     description: `пресет ${props.preset.name}, ${props.width}×${props.height}, ${props.fps} к/с, ${(props.durationInFrames / props.fps).toFixed(1)} с; слоты: ${slotList}`,
     preset: props.preset.name,
   };
@@ -136,8 +151,9 @@ async function planPreset(repo: string, flags: SourceFlags): Promise<Plan> {
 async function planScene(repo: string, flags: SourceFlags): Promise<Plan> {
   const file = resolve(flags.scene!);
   const scene = loadScene(file);
-  const { props, files, warnings } = await resolveScene(repo, scene);
+  const { props, files, warnings, clickTimes } = await resolveScene(repo, scene);
   const effects = props.objects.reduce((sum, o) => sum + (o.effects.popOut || o.effects.sparks ? o.clicks.length : 0), 0) + props.effects.length;
+  const extras = [props.cards.length ? `карточек ${props.cards.length}` : "", props.links.length ? `связей ${props.links.length}` : ""].filter(Boolean).join(", ");
   return {
     mode: "scene",
     job: { compositionId: STAGE_COMPOSITION_ID, inputProps: props, files, gl: glBackend(flags.gl) },
@@ -148,7 +164,9 @@ async function planScene(repo: string, flags: SourceFlags): Promise<Plan> {
     warnings,
     artifacts: [],
     recipeSha256: sha256(JSON.stringify(scene)),
-    description: `сцена ${repoRelative(repo, file)}: ${props.width}×${props.height}, ${props.fps} к/с, ${(props.durationInFrames / props.fps).toFixed(1)} с; объектов ${props.objects.length}, кадров камеры ${props.camera.keys.length}, эффектов ${effects}`,
+    clickTimes,
+    audio: scene.audio,
+    description: `сцена ${repoRelative(repo, file)}: ${props.width}×${props.height}, ${props.fps} к/с, ${(props.durationInFrames / props.fps).toFixed(1)} с; объектов ${props.objects.length}${extras ? `, ${extras}` : ""}, кадров камеры ${props.camera.keys.length}, эффектов ${effects}`,
     scene: repoRelative(repo, file),
   };
 }
@@ -186,6 +204,12 @@ async function planTimeline(repo: string, flags: RenderFlags): Promise<Plan> {
     warnings,
     artifacts: [writeArtifact(repo, "timeline.json", timelineJson, "timeline", flags.dryRun)],
     recipeSha256: sha256(timelineJson),
+    // Clicks of each scene, moved from the recording's clock to the output's.
+    clickTimes: props.scenes.flatMap((scene, index) => {
+      const offset = props.scenes.slice(0, index).reduce((sum, s) => sum + s.durationInFrames, 0) / props.fps;
+      const length = scene.durationInFrames / props.fps;
+      return scene.clicks.map((c) => (c.t - scene.in) / scene.speed).filter((t) => t >= 0 && t <= length).map((t) => offset + t);
+    }),
     description: `${props.width}×${props.height}, ${props.fps} к/с, ${(props.durationInFrames / props.fps).toFixed(2)} с, стиль ${timeline.style}, сцен ${props.scenes.length}, ключевых кадров камеры ${cameraMoves}`,
     timeline,
   };
@@ -234,6 +258,22 @@ async function render(flags: RenderFlags): Promise<CommandResult<RenderData>> {
     }
   });
 
+  // Sound: clicks where the recording has clicks, and music if a file was given. Flags override the scene file.
+  const wantClicks = flags.clickSounds ?? plan.audio?.clicks ?? false;
+  const musicPath = flags.music ?? plan.audio?.music;
+  const track: SoundTrack = {
+    clickTimes: wantClicks ? plan.clickTimes : [],
+    clickVolume: plan.audio?.clickVolume ?? SOUND_DEFAULTS.clickVolume,
+    musicVolume: flags.musicVolume ? positiveOrZero(flags.musicVolume, "--music-volume") : plan.audio?.musicVolume ?? SOUND_DEFAULTS.musicVolume,
+  };
+  if (musicPath) {
+    track.music = resolve(repo, musicPath);
+    if (!existsSync(track.music)) throw new UsageError(`Музыкальный файл не найден: ${musicPath}`);
+    warnings.push("музыка добавлена из вашего файла — убедитесь, что у вас есть право её использовать");
+  }
+  if (wantClicks && plan.clickTimes.length === 0) warnings.push("звуки кликов запрошены, но в ролике нет кликов — дорожка без щелчков");
+  if (hasSound(track)) await addSound(output, track, durationSeconds);
+
   const base = output.slice(0, -".mp4".length);
   const outputs: OutputInfo[] = [{ path: output, kind: "render", bytes: statSync(output).size }];
   outputs.push({ path: `${base}.png`, kind: "poster", bytes: await encodePoster(output, `${base}.png`, durationSeconds * POSTER_POSITION) });
@@ -244,6 +284,7 @@ async function render(flags: RenderFlags): Promise<CommandResult<RenderData>> {
     if (!gif.withinBudget) warnings.push(`GIF не уложился в бюджет даже на минимальных настройках: ${(gif.bytes / MEGABYTE).toFixed(1)} МБ. Сократите ролик.`);
   }
   if (flags.webp) outputs.push({ path: `${base}.webp`, kind: "webp", bytes: await encodeWebp(output, `${base}.webp`, plan.width, plan.fps) });
+  if (flags.webm) outputs.push({ path: `${base}.webm`, kind: "render", bytes: await encodeWebm(output, `${base}.webm`) });
   record(repo, plan, outputs);
 
   const relative = outputs.map((o) => ({ ...o, path: repoRelative(repo, o.path) }));
@@ -381,6 +422,32 @@ async function sceneInit(flags: SceneInitFlags): Promise<CommandResult<{ file: s
   };
 }
 
+interface ExplainFlags extends CommonFlags {
+  out: string;
+  theme: string;
+  force?: boolean;
+}
+
+async function explainInit(flags: ExplainFlags): Promise<CommandResult<{ file: string; scene: ReturnType<typeof explainScene>["scene"]; facts: ReturnType<typeof explainScene>["facts"] }>> {
+  const repo = resolveRepo(flags.repo);
+  if (!BACKGROUND_NAMES.includes(flags.theme as BackgroundName)) throw new UsageError(`--theme: ожидается одно из ${BACKGROUND_NAMES.join(", ")}`);
+  const target = resolve(repo, flags.out);
+  if (existsSync(target) && !flags.force) throw new UsageError(`${flags.out} уже существует. Перезаписать: --force`);
+  const { scene, humanTodo, facts } = explainScene(repo, flags.theme as BackgroundName);
+  const { warnings } = await resolveScene(repo, scene);
+  if (!flags.dryRun) writeFileSync(target, JSON.stringify(scene, null, 2) + "\n");
+  return {
+    data: { file: repoRelative(repo, target), scene, facts },
+    warnings,
+    humanTodo,
+    summary: [
+      `${flags.dryRun ? "dry-run: был бы создан" : "создан"} разбор ${repoRelative(repo, target)}: модулей ${facts.modules}, связей ${facts.links}${facts.services.length ? `, сервисы: ${facts.services.join(", ")}` : ""}; ${scene.output.duration} с`,
+      "карточки и связи взяты из кода: импорты, обращения к API, объявленные зависимости. Подписи можно уточнять, но только тем, что есть в коде",
+      `рендер: repokit studio render --scene ${flags.out} --out docs/media/how-it-works.mp4 --webm`,
+    ],
+  };
+}
+
 async function sceneValidate(flags: SourceFlags): Promise<CommandResult<{ objects: number; cameraKeys: number; durationSeconds: number }>> {
   const repo = resolveRepo(flags.repo);
   if (!flags.scene) throw new UsageError("Укажите сцену: --scene <файл>");
@@ -401,6 +468,7 @@ interface DeckFlags extends CommonFlags {
   out?: string;
   outDir: string;
   pdf?: boolean;
+  size: string;
   width?: string;
   force?: boolean;
 }
@@ -415,13 +483,13 @@ function deckTheme(flags: DeckFlags): BackgroundName {
   return flags.theme as BackgroundName;
 }
 
-function deckInit(flags: DeckFlags): CommandResult<{ file: string; deck: Deck }> {
+async function deckInit(flags: DeckFlags): Promise<CommandResult<{ file: string; deck: Deck }>> {
   const repo = resolveRepo(flags.repo);
   const kind = deckKind(flags);
   const target = resolve(repo, flags.out ?? (kind === "banner" ? "banner.deck.json" : "slides.deck.json"));
   if (existsSync(target) && !flags.force) throw new UsageError(`${repoRelative(repo, target)} уже существует. Перезаписать: --force`);
   const { deck, humanTodo } = deckFromFacts(repo, kind, deckTheme(flags));
-  const { warnings } = resolveDeck(repo, deck, kind);
+  const { warnings } = await resolveDeck(repo, deck, kind);
   if (!flags.dryRun) writeFileSync(target, JSON.stringify(deck, null, 2) + "\n");
   return {
     data: { file: repoRelative(repo, target), deck },
@@ -439,7 +507,7 @@ async function renderDeck(repo: string, deck: Deck, kind: DeckKind, targets: str
   const size = deck.size ?? DECK_SIZES[kind];
   const width = flags.width ? positiveNumber(flags.width, "--width") : size.width;
   const scaled = { ...deck, size: { width: Math.round(width / 2) * 2, height: Math.round((width * size.height) / size.width / 2) * 2 } };
-  const { props, files, warnings } = resolveDeck(repo, scaled, kind);
+  const { props, files, warnings } = await resolveDeck(repo, scaled, kind);
   const job: RenderJob = { compositionId: DECK_COMPOSITION_ID, inputProps: props, files };
   await renderStills(job, targets.map((output, frame) => ({ frame, output })));
   const outputs: OutputInfo[] = targets.map((path) => ({ path, kind: "poster", bytes: statSync(path).size }));
@@ -471,7 +539,7 @@ async function deckRender(flags: DeckFlags): Promise<CommandResult<{ outputs: Ou
   const dir = resolve(repo, flags.outDir);
   const targets = deck.slides.map((_, index) => join(dir, `slide-${String(index + 1).padStart(2, "0")}.png`));
   if (flags.dryRun) {
-    const { warnings } = resolveDeck(repo, deck, kind);
+    const { warnings } = await resolveDeck(repo, deck, kind);
     return { data: { outputs: [] }, warnings, summary: [`dry-run: слайдов ${deck.slides.length} → ${repoRelative(repo, dir)}`] };
   }
   const { outputs, warnings } = await renderDeck(repo, deck, kind, targets, flags);
@@ -484,12 +552,14 @@ async function banner(flags: DeckFlags): Promise<CommandResult<{ output: OutputI
   if (!flags.out) throw new UsageError("Укажите, куда сохранить баннер: --out docs/media/banner.png");
   const target = resolve(repo, flags.out);
   if (extname(target).toLowerCase() !== ".png") throw new UsageError("--out должен указывать на файл .png");
-  const { deck, humanTodo } = flags.deck ? { deck: loadDeck(resolve(flags.deck)), humanTodo: [] } : deckFromFacts(repo, "banner", deckTheme(flags));
+  if (flags.size !== "banner" && flags.size !== "wide") throw new UsageError("--size: ожидается banner (1280×640, обложка репозитория) или wide (1600×520, полоса для README)");
+  const size: DeckKind = flags.size;
+  const { deck, humanTodo } = flags.deck ? { deck: loadDeck(resolve(flags.deck)), humanTodo: [] } : deckFromFacts(repo, size, deckTheme(flags));
   if (flags.dryRun) {
-    const { warnings } = resolveDeck(repo, deck, "banner");
+    const { warnings } = await resolveDeck(repo, deck, size);
     return { data: { output: null, deck }, warnings, humanTodo, summary: ["dry-run: баннер не рендерился"] };
   }
-  const { outputs, warnings } = await renderDeck(repo, { ...deck, slides: deck.slides.slice(0, 1) }, "banner", [target], { ...flags, pdf: false });
+  const { outputs, warnings } = await renderDeck(repo, { ...deck, slides: deck.slides.slice(0, 1) }, size, [target], { ...flags, pdf: false });
   const output = { ...outputs[0], path: repoRelative(repo, outputs[0].path) };
   return { data: { output, deck }, warnings, humanTodo, summary: [`баннер: ${output.path} — ${(output.bytes / MEGABYTE).toFixed(2)} МБ`] };
 }
@@ -527,6 +597,17 @@ export function registerStudio(program: Command): void {
     .option("--scene <file>", "файл сцены")
     .action((flags: SourceFlags) => runCommand("studio", "scene validate", flags, () => sceneValidate(flags)));
 
+  commonFlags(studio.command("explain").description("видеоразбор устройства проекта: карточки модулей и сервисов, связи из кода, камера идёт по пути запроса"))
+    .option("--out <file>", "куда сохранить сцену разбора", "explain.scene.json")
+    .option("--theme <name>", `оформление: ${BACKGROUND_NAMES.join(", ")}`, "dark")
+    .option("--force", "перезаписать существующий файл")
+    .action((flags: ExplainFlags) => runCommand("studio", "explain", flags, () => explainInit(flags)));
+  studio.command("icons").description("значки для карточек сцен").option("--json", "один JSON-документ в stdout")
+    .action((flags: { json?: boolean }) => runCommand("studio", "icons", flags, () => ({
+      data: { generic: GENERIC_ICONS },
+      summary: [`общие: ${GENERIC_ICONS.join(", ")}`, "логотипы технологий — по slug из simple-icons: python, fastapi, postgresql, redis, docker, react, …"],
+    })));
+
   const deck = studio.command("deck").description("слайды презентации из фактов о проекте");
   const deckFlags = (c: Command) =>
     commonFlags(c)
@@ -542,8 +623,9 @@ export function registerStudio(program: Command): void {
     .option("--width <px>", "ширина слайда (по умолчанию 1920)")
     .option("--pdf", "дополнительно собрать slides.pdf")
     .action((flags: DeckFlags) => runCommand("studio", "deck render", flags, () => deckRender(flags)));
-  deckFlags(studio.command("banner").description("баннер 1280×640: название, тэглайн, технологии и настоящий скриншот"))
+  deckFlags(studio.command("banner").description("баннер проекта: название, тэглайн, технологии с логотипами и настоящий скриншот"))
     .option("--deck <file>", "своё описание баннера вместо собранного из фактов")
+    .option("--size <kind>", "banner — 1280×640, обложка репозитория; wide — 1600×520, полоса для верха README", "banner")
     .option("--out <file>", "итоговый файл .png")
     .option("--width <px>", "ширина баннера (по умолчанию 1280)")
     .action((flags: DeckFlags) => runCommand("studio", "banner", flags, () => banner(flags)));
@@ -560,6 +642,11 @@ export function registerStudio(program: Command): void {
     .option("--out <file>", "итоговый файл .mp4, например docs/media/hero.mp4")
     .option("--gif", "дополнительно создать GIF в пределах бюджета")
     .option("--webp", "дополнительно создать анимированный WebP")
+    .option("--webm", "дополнительно создать WebM (VP9; со звуком, если он есть)")
+    .option("--click-sounds", "звук щелчка на каждый клик записи")
+    .option("--no-click-sounds", "без щелчков, даже если они включены в сцене")
+    .option("--music <file>", "музыкальный файл из репозитория: зацикливается или обрезается по длине ролика")
+    .option("--music-volume <n>", "громкость музыки, 0–2 (по умолчанию 0.25)")
     .option("--gif-budget-mb <n>", "максимальный размер GIF в мегабайтах", String(DEFAULT_GIF_BUDGET_BYTES / MEGABYTE))
     .action((flags: RenderFlags) => runCommand("studio", "render", flags, () => render(flags)));
 

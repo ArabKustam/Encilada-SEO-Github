@@ -3,6 +3,7 @@ import { extname } from "node:path";
 import { assertValid, findProvenance, insideRepo, readManifest, UsageError, type HumanTodo } from "@repokit/core";
 import { detectStack, loadContext, loadOptions, technologyByName } from "@repokit/readme";
 import type { DeckChip, DeckLayout, DeckProps, DeckSlide, DeckTheme } from "./remotion/Deck.js";
+import { resolveIcon } from "./icons.js";
 import type { BackgroundName } from "./scene.js";
 
 /** A deck as written by its author; see schemas/deck.schema.json. */
@@ -24,7 +25,8 @@ export interface Deck {
   }[];
 }
 
-export const DECK_SIZES = { slides: { width: 1920, height: 1080 }, banner: { width: 1280, height: 640 } } as const;
+/** `banner` is the size GitHub uses for a repository's social preview; `wide` is a strip for the top of a README. */
+export const DECK_SIZES = { slides: { width: 1920, height: 1080 }, banner: { width: 1280, height: 640 }, wide: { width: 1600, height: 520 } } as const;
 export type DeckKind = keyof typeof DECK_SIZES;
 
 const THEMES: Record<BackgroundName, DeckTheme> = {
@@ -59,11 +61,19 @@ export interface ResolvedDeck {
 }
 
 /** Check a deck against the files it refers to and turn it into render props. */
-export function resolveDeck(repo: string, deck: Deck, kind: DeckKind = "slides"): ResolvedDeck {
+export async function resolveDeck(repo: string, deck: Deck, kind: DeckKind = "slides"): Promise<ResolvedDeck> {
   const size = deck.size ?? DECK_SIZES[kind];
   const warnings: string[] = [];
   const files: ResolvedDeck["files"] = [];
-  const slides: DeckSlide[] = deck.slides.map((slide, index) => {
+  // A technology chip gets its brand colour and logo; anything else stays a plain chip.
+  const chip = async (value: string | DeckChip): Promise<DeckChip> => {
+    if (typeof value !== "string") return value;
+    const tech = technologyByName(value);
+    const icon = tech.logo ? await resolveIcon(tech.logo) : null;
+    return { label: value, ...(tech.color !== "555555" ? { color: tech.color } : {}), ...(icon ? { icon: icon.path } : {}) };
+  };
+  const slides: DeckSlide[] = [];
+  for (const [index, slide] of deck.slides.entries()) {
     let image: string | undefined;
     if (slide.image) {
       const source = insideRepo(repo, slide.image);
@@ -75,12 +85,9 @@ export function resolveDeck(repo: string, deck: Deck, kind: DeckKind = "slides")
       files.push({ source, name: image });
     }
     if ((slide.layout === "image") && !slide.image) throw new UsageError(`Слайд ${index + 1}: для layout image нужно изображение`);
-    return {
-      ...slide,
-      image,
-      chips: slide.chips?.map((chip) => (typeof chip === "string" ? { label: chip, color: technologyByName(chip).color === "555555" ? undefined : technologyByName(chip).color } : chip)),
-    };
-  });
+    const { chips, ...rest } = slide;
+    slides.push({ ...rest, image, ...(chips ? { chips: await Promise.all(chips.map(chip)) } : {}) });
+  }
   return {
     props: { ...size, fps: 1, durationInFrames: slides.length, theme: THEMES[deck.theme ?? "light"], footer: deck.footer ?? "", slides },
     files,
@@ -131,9 +138,8 @@ export function deckFromFacts(repo: string, kind: DeckKind, theme: BackgroundNam
     heading: title,
     ...(human.tagline ? { body: human.tagline } : {}),
     ...(cover ? { image: cover.path, frame: cover.phone ? "phone" : "browser" } : {}),
-    ...(kind === "banner" && chips.length ? { chips } : {}),
   };
-  if (kind === "banner") return { deck: { schemaVersion: 1, size: DECK_SIZES.banner, theme, slides: [titleSlide] }, humanTodo };
+  if (kind !== "slides") return { deck: { schemaVersion: 1, size: DECK_SIZES[kind], theme, slides: [{ ...titleSlide, ...(chips.length ? { chips } : {}) }] }, humanTodo };
 
   const slides: Deck["slides"] = [titleSlide];
   // The first sentence becomes the heading; the rest, if any, the body.

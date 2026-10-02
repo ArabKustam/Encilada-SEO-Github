@@ -232,6 +232,9 @@ importers:
       '@repokit/readme':
         specifier: workspace:*
         version: link:../readme
+      '@repokit/release':
+        specifier: workspace:*
+        version: link:../release
       '@repokit/scan':
         specifier: workspace:*
         version: link:../scan
@@ -327,6 +330,18 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
 
+  packages/release:
+    dependencies:
+      '@repokit/core':
+        specifier: workspace:*
+        version: link:../core
+      '@repokit/readme':
+        specifier: workspace:*
+        version: link:../readme
+      commander:
+        specifier: ^15.0.0
+        version: 15.0.0
+
   packages/scan:
     dependencies:
       '@repokit/core':
@@ -365,6 +380,9 @@ importers:
       remotion:
         specifier: ^4.0.531
         version: 4.0.531(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      simple-icons:
+        specifier: ^16.33.0
+        version: 16.33.0
     devDependencies:
       '@types/react':
         specifier: ^19.3.0
@@ -2246,6 +2264,10 @@ packages:
 
   signal-exit@3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
+
+  simple-icons@16.33.0:
+    resolution: {integrity: sha512-z14u6A8ngAg9mgERRsNO8YkjIMefehIpBk7A8Dz3Gd91945qFP19MLPSHgV4z8P5u/MRYd5e07OTzaDoB4d6qA==}
+    engines: {node: '>=0.12.18'}
 
   source-map-js@1.2.2:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
@@ -4303,6 +4325,8 @@ snapshots:
   shebang-regex@3.0.0: {}
 
   signal-exit@3.0.7: {}
+
+  simple-icons@16.33.0: {}
 
   source-map-js@1.2.2: {}
 

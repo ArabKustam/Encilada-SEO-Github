@@ -6,6 +6,7 @@ import { registerCapture } from "@repokit/capture";
 import { registerDeploy } from "@repokit/deploy";
 import { registerPreview } from "@repokit/preview";
 import { registerReadme } from "@repokit/readme";
+import { registerRelease } from "@repokit/release";
 import { registerScan } from "@repokit/scan";
 import { registerStudio } from "@repokit/studio";
 import { registerVerify } from "@repokit/verify";
@@ -30,6 +31,7 @@ registerReadme(program);
 registerPreview(program);
 registerVerify(program);
 registerDeploy(program);
+registerRelease(program);
 registerRun(program);
 registerDoctor(program);
 

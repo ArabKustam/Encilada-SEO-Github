@@ -104,7 +104,15 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
   const renderers: Record<ReadmeSlotId, Render> = {
     header: (slot) => {
       const tagline = human.tagline ? `**${human.tagline}**` : fill("tagline", `одна фраза о проекте — поле tagline в ${HUMAN_PATH}`);
-      const body = [`# ${title}`, tagline, badges().join(" ")].filter(Boolean).join("\n\n");
+      let banner = "";
+      if (ctx.options.banner) {
+        if (!existsSync(join(ctx.repo, ctx.options.banner))) warnings.push(`баннер не найден: ${ctx.options.banner} — в README не вставлен`);
+        else {
+          if (!provenance(ctx, ctx.options.banner)) warnings.push(`медиа ${ctx.options.banner}: происхождение неизвестно — файл не создан через repokit`);
+          banner = `<p align="center">\n<img src="${ctx.options.banner}" alt="${escapeHtml(human.tagline ? `${title} — ${human.tagline}` : title)}">\n</p>`;
+        }
+      }
+      const body = [banner, `# ${title}`, tagline, badges().join(" ")].filter(Boolean).join("\n\n");
       const markdown = slot.options.variant === "centered" ? `<div align="center">\n\n${body}\n\n</div>` : body;
       return human.tagline
         ? filled(markdown, `название: ${human.title ? HUMAN_PATH : "имя проекта"}; тэглайн: ${HUMAN_PATH}; бейджи: ${badgeNames.join(", ") || "нет"}`)

@@ -18,6 +18,7 @@
 | [remotion](https://github.com/remotion-dev/remotion), @remotion/bundler, @remotion/renderer | 4.0.531 | **Remotion License** (не open source) | покадровый рендер в `studio` |
 | [@remotion/three](https://github.com/remotion-dev/remotion/tree/main/packages/three) | 4.0.531 | MIT | связка Remotion и three.js |
 | [three](https://github.com/mrdoob/three.js) | 0.186.1 | MIT | 3D-сцены пресетов |
+| [simple-icons](https://github.com/simple-icons/simple-icons) | 16.33.0 | CC0-1.0 | логотипы технологий на карточках сцен, баннерах и слайдах |
 | [@react-three/fiber](https://github.com/pmndrs/react-three-fiber) | 9.8.1 | MIT | описание 3D-сцен компонентами React |
 
 ### Лицензия Remotion
@@ -47,6 +48,10 @@ GIF кодируется фильтрами палитры ffmpeg. gifski не �
 
 Оформление ролика (окно-рамка, курсор, фоны) нарисовано в коде repokit; сторонние изображения, логотипы и код других
 программ записи экрана не используются.
+
+Логотипы технологий берутся из набора simple-icons (CC0). Сами логотипы и названия остаются товарными знаками их владельцев;
+repokit показывает их только чтобы обозначить, какие технологии использует проект. Общие значки (пользователь, сервер,
+база данных и т. п.) нарисованы для repokit. Звук щелчка синтезируется ffmpeg; звуковых файлов в репозитории нет.
 
 ## 3D-модели и изображения
 

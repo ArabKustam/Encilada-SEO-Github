@@ -95,6 +95,25 @@ describe("repokit deploy", () => {
   });
 });
 
+describe("repokit release", () => {
+  it("drafts notes from facts and never publishes without confirmation", () => {
+    const project = mkdtempSync(join(tmpdir(), "repokit-release-cli-"));
+    cpSync(join(ROOT, "examples/web-app"), project, { recursive: true, filter: (source) => !source.includes(".repokit") && !source.includes("docs") });
+    try {
+      const planned = repokit(["release", "plan", "--repo", project, "--json"]);
+      expect(planned.code).toBe(0);
+      expect(JSON.parse(planned.stdout).data.tag).toBe("v0.1.0");
+      expect(readFileSync(join(project, ".repokit/release.md"), "utf8")).toContain("## Как запустить");
+
+      const created = repokit(["release", "create", "--repo", project, "--json"]);
+      expect(created.code).toBe(3);
+      expect(JSON.parse(created.stdout).error.message).toContain("--confirm");
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("repokit run", () => {
   const project = mkdtempSync(join(tmpdir(), "repokit-run-"));
   cpSync(join(ROOT, "examples/web-app"), project, { recursive: true, filter: (source) => !source.includes(".repokit") && !source.includes("docs") });

@@ -41,6 +41,8 @@ export interface Options {
   language: Language;
   hero?: string;
   heroDark?: string;
+  /** A banner image shown above the title. */
+  banner?: string;
 }
 
 export const DEFAULT_OPTIONS: Options = { preset: "showcase", language: "ru" };

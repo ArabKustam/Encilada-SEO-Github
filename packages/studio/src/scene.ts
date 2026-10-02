@@ -2,16 +2,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname } from "node:path";
 import { assertValid, findProvenance, insideRepo, runTool, UsageError } from "@repokit/core";
 import type { Ease, TransformKey } from "@repokit/presets/motion";
-import type { CameraKey, MediaBox, MediaPoint, StageDevice, StageEffect, StageObject, StageProps } from "@repokit/presets/stage-types";
+import type { CameraKey, MediaBox, MediaPoint, StageCard, StageDevice, StageEffect, StageLink, StageObject, StageProps } from "@repokit/presets/stage-types";
 import type { Vec3 } from "@repokit/presets/types";
 import { buildCamera, type TimedEvent } from "./camera.js";
+import { resolveIcon } from "./icons.js";
 
 /** A scene as written by its author; see schemas/scene.schema.json. */
 export interface Scene {
   schemaVersion: 1;
   output: { width?: number; height?: number; fps?: number; duration: number };
   background?: BackgroundName | { css: string; captionColor?: string };
-  objects: {
+  objects?: {
     id: string;
     device: StageDevice;
     media: string;
@@ -32,8 +33,37 @@ export interface Scene {
     auto?: { object: string; zoom?: number; wide?: number; yaw?: number; pitch?: number };
     keyframes?: (Omit<CameraKey, "focus"> & { focus?: { object: string; point?: MediaPoint; zoom?: number; yaw?: number; pitch?: number } })[];
   };
+  /** Plates with an icon and text: services, modules, steps of an explanation. */
+  cards?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    /** A generic icon name or a technology's simple-icons slug. */
+    icon?: string;
+    color?: string;
+    theme?: "light" | "dark";
+    width?: number;
+    position?: Vec3;
+    rotation?: Vec3;
+    scale?: number;
+    keyframes?: TransformKey[];
+    enterAt?: number;
+    exitAt?: number;
+  }[];
+  /** Lines between objects or cards, with pulses that show a call or a data flow. */
+  links?: { from: string; to: string; at?: number; color?: string; pulses?: number[] }[];
   effects?: StageEffect[];
   captions?: { from: number; to: number; text: string; position?: "top" | "bottom" }[];
+  audio?: SceneAudio;
+}
+
+export interface SceneAudio {
+  /** A short synthesised click at every click of the recordings. */
+  clicks?: boolean;
+  clickVolume?: number;
+  /** A music file inside the repository; looped or cut to the length of the scene. */
+  music?: string;
+  musicVolume?: number;
 }
 
 const BACKGROUNDS = {
@@ -83,10 +113,16 @@ export interface ResolvedScene {
   props: StageProps;
   files: { source: string; name: string }[];
   warnings: string[];
+  /** Moments of clicks on the scene clock, for the sound track. */
+  clickTimes: number[];
 }
+
+const DARK_BACKGROUNDS = new Set<string>(["dark", "mono"]);
+const CARD_DEFAULTS = { width: 2.6, color: "#3157d5", linkColor: "#8ea6ff" };
 
 /** Check a scene against the files it refers to and turn it into render props. */
 export async function resolveScene(repo: string, scene: Scene): Promise<ResolvedScene> {
+  assertValid("scene", scene);
   const output = { ...DEFAULT_OUTPUT, ...scene.output };
   const { duration } = scene.output;
   const warnings: string[] = [];
@@ -96,7 +132,8 @@ export async function resolveScene(repo: string, scene: Scene): Promise<Resolved
   /** Recording events on the scene clock, per object; the automatic camera is planned from these. */
   const timelines = new Map<string, { events: TimedEvent[]; viewport: { width: number; height: number } }>();
 
-  for (const item of scene.objects) {
+  if (!scene.objects?.length && !scene.cards?.length) throw new UsageError("В сцене нет ни объектов, ни карточек — показывать нечего");
+  for (const item of scene.objects ?? []) {
     if (ids.has(item.id)) throw new UsageError(`Объект «${item.id}» объявлен дважды`);
     ids.add(item.id);
     const source = insideRepo(repo, item.media);
@@ -149,10 +186,40 @@ export async function resolveScene(repo: string, scene: Scene): Promise<Resolved
     });
   }
 
+  const darkScene = typeof scene.background === "string" ? DARK_BACKGROUNDS.has(scene.background) : false;
+  const cards: StageCard[] = [];
+  for (const item of scene.cards ?? []) {
+    if (ids.has(item.id)) throw new UsageError(`Объект «${item.id}» объявлен дважды`);
+    ids.add(item.id);
+    const icon = item.icon ? await resolveIcon(item.icon) : null;
+    if (item.icon && !icon) warnings.push(`карточка «${item.id}»: значок «${item.icon}» не найден — карточка будет без значка`);
+    cards.push({
+      id: item.id,
+      title: item.title,
+      ...(item.subtitle ? { subtitle: item.subtitle } : {}),
+      ...(icon ? { icon: { path: icon.path, viewBox: icon.viewBox } } : {}),
+      color: item.color ?? (icon?.hex ? `#${icon.hex}` : CARD_DEFAULTS.color),
+      theme: item.theme ?? (darkScene ? "dark" : "light"),
+      width: item.width ?? CARD_DEFAULTS.width,
+      base: { position: item.position ?? [0, 0, 0], rotation: item.rotation ?? [0, 0, 0], scale: item.scale ?? 1 },
+      keyframes: item.keyframes ?? [],
+      enterAt: item.enterAt ?? 0,
+      ...(item.exitAt !== undefined ? { exitAt: item.exitAt } : {}),
+    });
+  }
+
   const known = (id: string, where: string) => {
     if (!ids.has(id)) throw new UsageError(`${where}: объекта «${id}» нет в сцене. Объекты: ${[...ids].join(", ")}`);
   };
-  for (const effect of scene.effects ?? []) known(effect.object, `Эффект ${effect.type}`);
+  for (const effect of scene.effects ?? []) {
+    known(effect.object, `Эффект ${effect.type}`);
+    if (!objects.some((o) => o.id === effect.object)) throw new UsageError(`Эффект ${effect.type}: «${effect.object}» — карточка, а эффекты ставятся на экраны устройств`);
+  }
+  const links: StageLink[] = (scene.links ?? []).map((link) => {
+    known(link.from, "Связь");
+    known(link.to, "Связь");
+    return { from: link.from, to: link.to, at: link.at ?? 0, color: link.color ?? CARD_DEFAULTS.linkColor, pulses: link.pulses ?? [] };
+  });
 
   let keys: CameraKey[];
   const camera = scene.camera ?? {};
@@ -163,8 +230,18 @@ export async function resolveScene(repo: string, scene: Scene): Promise<Resolved
       if (!focus && !key.position) throw new UsageError(`Кадр камеры at=${key.at}: укажите focus или position`);
       return { ...key, ...(focus ? { focus: { ...focus, zoom: focus.zoom ?? 1 } } : {}) };
     }).sort((a, b) => a.at - b.at);
+  } else if (objects.length === 0) {
+    // Only cards: stand back far enough to see all of them.
+    const fov = camera.fov ?? DEFAULT_FOV;
+    const xs = cards.flatMap((c) => [c.base.position[0] - c.width / 2, c.base.position[0] + c.width / 2]);
+    const ys = cards.flatMap((c) => [c.base.position[1] - c.width * 0.2, c.base.position[1] + c.width * 0.2]);
+    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const vertical = Math.tan((fov * Math.PI) / 360);
+    const distance = Math.max((maxX - minX) / (2 * vertical * (output.width / output.height)), (maxY - minY) / (2 * vertical)) * 1.25;
+    const centre: Vec3 = [(minX + maxX) / 2, (minY + maxY) / 2, 0];
+    keys = [{ at: 0, position: [centre[0], centre[1], Math.max(...cards.map((c) => c.base.position[2])) + distance], lookAt: centre }];
   } else {
-    const auto = { ...AUTO, object: scene.objects[0].id, ...camera.auto };
+    const auto = { ...AUTO, object: objects[0].id, ...camera.auto };
     known(auto.object, "Камера (auto)");
     const timeline = timelines.get(auto.object)!;
     // The 2D auto-zoom planner decides where to look and when; here its result drives a real camera.
@@ -192,12 +269,15 @@ export async function resolveScene(repo: string, scene: Scene): Promise<Resolved
       background: background.css,
       captionColor: background.caption,
       objects,
+      cards,
+      links,
       camera: { fov: camera.fov ?? DEFAULT_FOV, keys },
       effects: scene.effects ?? [],
       captions: (scene.captions ?? []).map((c) => ({ ...c, position: c.position ?? "bottom" })),
     },
     files,
     warnings,
+    clickTimes: objects.flatMap((o) => o.clicks.map((c) => c.t)).filter((t) => t >= 0 && t <= duration).sort((a, b) => a - b),
   };
 }
 

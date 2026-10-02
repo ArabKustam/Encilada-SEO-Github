@@ -24,7 +24,7 @@ const RULES: Rule[] = [
   { name: "TypeScript", color: "3178C6", logo: "typescript", logoColor: "white", group: "language", language: "TypeScript" },
   { name: "JavaScript", color: "323330", logo: "javascript", logoColor: "F7DF1E", group: "language", language: "JavaScript" },
   { name: "HTML5", color: "E34F26", logo: "html5", logoColor: "white", group: "language", language: "HTML" },
-  { name: "CSS3", color: "1572B6", logo: "css3", logoColor: "white", group: "language", language: "CSS" },
+  { name: "CSS3", color: "1572B6", logo: "css", logoColor: "white", group: "language", language: "CSS" },
   { name: "Go", color: "00ADD8", logo: "go", logoColor: "white", group: "language", language: "Go" },
   { name: "Rust", color: "000000", logo: "rust", logoColor: "white", group: "language", language: "Rust" },
   { name: "Java", color: "ED8B00", logo: "openjdk", logoColor: "white", group: "language", language: "Java" },

@@ -29,7 +29,8 @@ node packages/cli/dist/bin.js studio render --repo examples/web-app --out docs/m
 | `--width`, `--height`, `--fps` | размер и частота кадра, по умолчанию 1280×720, 30 |
 | `--no-zoom`, `--zoom-scale <n>` | выключить авто-зум или задать кратность (по умолчанию 1.8) |
 | `--title <text>` | заголовок над окном |
-| `--gif`, `--webp` | дополнительные форматы |
+| `--gif`, `--webp`, `--webm` | дополнительные форматы; WebM — со звуком, если он есть |
+| `--click-sounds`, `--music <файл>`, `--music-volume <n>` | звук: щелчки на клики записи и ваша музыка; см. [scenes.md](scenes.md#звук) |
 | `--gif-budget-mb <n>` | предел размера GIF, по умолчанию 8 |
 | `--dry-run` | показать план и таймлайн, рендер не выполнять |
 
@@ -122,7 +123,8 @@ node packages/cli/dist/bin.js studio render --repo examples/web-app --preset lap
 
 ## Режиссёрские сцены
 
-Когда пресета мало: свои объекты, движение камеры к любой точке страницы, эффекты по кликам — см. [scenes.md](scenes.md).
+Когда пресета мало: свои объекты, движение камеры к любой точке страницы, эффекты по кликам, карточки со значками и связи между ними,
+видеоразбор устройства проекта (`studio explain`) — см. [scenes.md](scenes.md).
 
 ## Баннеры и слайды
 
@@ -143,7 +145,7 @@ node packages/cli/dist/bin.js studio deck render --repo examples/web-app --deck 
 
 | Команда | Результат |
 |---|---|
-| `studio banner --out x.png [--theme dark] [--width 1280]` | баннер 1280×640 (формат обложки репозитория на GitHub) |
+| `studio banner --out x.png [--size banner\|wide] [--theme dark]` | баннер проекта: `banner` — 1280×640, обложка репозитория на GitHub; `wide` — 1600×520, полоса для верха README (`readme plan --banner x.png`) |
 | `studio deck init [--kind slides\|banner] [--theme light]` | описание слайдов `slides.deck.json`, собранное из фактов; его можно править |
 | `studio deck render --deck f --out-dir docs/slides [--pdf]` | `slide-01.png`, … и, по флагу, `slides.pdf` |
 
@@ -154,7 +156,7 @@ node packages/cli/dist/bin.js studio deck render --repo examples/web-app --deck 
 Описание слайдов — обычный JSON ([schemas/deck.schema.json](../schemas/deck.schema.json)) с макетами `title`, `split`,
 `text`, `bullets`, `image`, `chips` и рамками `browser`, `phone`, `none`. Темы: `light`, `dark`, `glass`, `sunset`, `mint`, `mono`.
 
-Плашки технологий на слайдах нарисованы текстом в фирменном цвете, без логотипов. PDF содержит только картинки слайдов.
+Плашки технологий — в фирменном цвете и с логотипом (значки из набора simple-icons, лицензия CC0). PDF содержит только картинки слайдов.
 
 ## Происхождение
 

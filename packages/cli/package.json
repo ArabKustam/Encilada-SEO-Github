@@ -20,6 +20,7 @@
     "@repokit/readme": "workspace:*",
     "@repokit/preview": "workspace:*",
     "@repokit/verify": "workspace:*",
-    "@repokit/deploy": "workspace:*"
+    "@repokit/deploy": "workspace:*",
+    "@repokit/release": "workspace:*"
   }
 }

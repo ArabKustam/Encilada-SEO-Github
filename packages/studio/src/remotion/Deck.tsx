@@ -4,7 +4,7 @@ import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig } from "
 export const DECK_LAYOUTS = ["title", "text", "bullets", "image", "split", "chips"] as const;
 export type DeckLayout = (typeof DECK_LAYOUTS)[number];
 
-export type DeckChip = { label: string; color?: string };
+export type DeckChip = { label: string; color?: string; /** A filled icon path in a 24-unit box. */ icon?: string };
 
 /** One still image: a slide of a presentation or a banner. */
 export type DeckSlide = {
@@ -71,12 +71,18 @@ const Chips: FC<{ chips: DeckChip[]; theme: DeckTheme; u: number; large?: boolea
       <div
         key={index}
         style={{
+          display: "flex", alignItems: "center", gap: (large ? 16 : 10) * u,
           padding: `${(large ? 18 : 10) * u}px ${(large ? 34 : 22) * u}px`, borderRadius: 999,
           font: `600 ${(large ? 40 : 26) * u}px ${FONT}`, letterSpacing: "0.01em",
           background: chip.color ? `#${chip.color}` : theme.card, color: chip.color ? "#fff" : theme.text,
           border: chip.color ? "none" : `1px solid ${theme.border}`,
         }}
       >
+        {chip.icon && (
+          <svg viewBox="0 0 24 24" width={(large ? 40 : 26) * u} height={(large ? 40 : 26) * u} style={{ flex: "none" }}>
+            <path d={chip.icon} fill={chip.color ? "#fff" : theme.text} fillRule="evenodd" />
+          </svg>
+        )}
         {chip.label}
       </div>
     ))}

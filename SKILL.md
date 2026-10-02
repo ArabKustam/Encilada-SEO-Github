@@ -50,7 +50,10 @@ description: Оформление хакатонного репозитория 
 | `repokit studio still --preset <имя> --slot main=<файл> --frame N --out x.png` | один кадр пресета для быстрой проверки |
 | `repokit studio scene init` / `scene validate --scene f` | режиссёрская сцена (JSON): заготовка из записи и проверка |
 | `repokit studio still --scene f --at <сек> --out x.png` / `studio render --scene f --out … --gif` | кадр сцены и весь ролик |
-| `repokit studio banner --out x.png` / `studio deck init` / `studio deck render --deck f --pdf` | баннер и слайды из фактов о проекте |
+| `repokit studio banner --out x.png [--size wide]` / `studio deck init` / `studio deck render --deck f --pdf` | баннер и слайды из фактов о проекте |
+| `repokit studio explain` | сцена-разбор устройства проекта: карточки модулей, связи из кода |
+| `studio render … --webm --click-sounds --music <файл>` | WebM и звук |
+| `repokit release plan` / `release create --confirm` | описание релиза из фактов; создание через `gh`, если релиза ещё нет |
 
 | `repokit brief extract --file <правила>` / `brief init --default` | текст правил и заготовка `brief.json`, либо типовой набор критериев |
 | `repokit brief validate` / `brief matrix` | проверка цитат и матрицы; таблица «критерий → чем подтвердить» |
@@ -107,6 +110,9 @@ description: Оформление хакатонного репозитория 
 - Координаты кликов и рамки элементов бери из `events.json` (поля `x`, `y`, `box`), моменты времени — из поля `t`.
 - После каждой правки: `studio still --scene f --at <сек>` и **открой PNG**. Не рендерь весь ролик, пока кадры в ключевые моменты не выглядят как надо.
 - На экранах — только записи из `capture`. В `captions` пиши только то, что в этот момент видно на экране.
+- Карточки (`cards`) и связи (`links`) — для схем и пояснений. `studio explain` строит разбор из кода; дополняя его, называй в карточках и подписях только те модули, роуты и сервисы, которые нашёл в исходниках (проверь по `scan.json` и самим файлам). Не рисуй связь, которой в коде нет.
+- Музыку не выбирай сам: `--music` — только файл, который дал пользователь.
+- `release create --confirm` — только после явного согласия пользователя: релиз публичен.
 
 ### Правила и README
 

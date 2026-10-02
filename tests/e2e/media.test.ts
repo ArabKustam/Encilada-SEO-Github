@@ -119,11 +119,33 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
     scene.effects = [{ type: "sparks", object: "app", at: 0.5, point: [640, 360] }];
     writeFileSync(file, JSON.stringify(scene));
 
-    const rendered = repokit(["studio", "render", "--scene", file, "--gl", "swangle", "--out", "docs/media/scene.mp4", "--gif"]);
+    const rendered = repokit(["studio", "render", "--scene", file, "--gl", "swangle", "--out", "docs/media/scene.mp4", "--gif", "--webm", "--click-sounds"]);
     expect(rendered.code, rendered.stderr).toBe(0);
     expect(rendered.envelope.data).toMatchObject({ mode: "scene", scene: "demo.scene.json", durationSeconds: 4 });
     expect(rendered.envelope.warnings).toEqual([]);
     expect(statSync(join(repo, "docs/media/scene.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
+
+    // Both files carry a sound track with the clicks: AAC in the MP4, Opus in the WebM.
+    const streams = (name: string) =>
+      spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", join(repo, "docs/media", name)], { encoding: "utf8" }).stdout.split(/[\s,]+/).filter(Boolean).sort();
+    expect(streams("scene.mp4")).toEqual(["aac", "h264"]);
+    expect(streams("scene.webm")).toEqual(["opus", "vp9"]);
+  }, 600_000);
+
+  it("renders a walk-through of how the project is built, from its imports and API calls", () => {
+    const made = repokit(["studio", "explain", "--out", "explain.scene.json"]);
+    expect(made.code, made.stderr).toBe(0);
+    expect(made.envelope.data.facts).toEqual({ modules: 3, links: 3, services: [] });
+    const file = join(repo, "explain.scene.json");
+    const scene = JSON.parse(readFileSync(file, "utf8"));
+    Object.assign(scene.output, { width: 480, height: 270, fps: 10 });
+    writeFileSync(file, JSON.stringify(scene));
+
+    const rendered = repokit(["studio", "render", "--scene", file, "--gl", "swangle", "--out", "docs/media/how-it-works.mp4"]);
+    expect(rendered.code, rendered.stderr).toBe(0);
+    // No recordings are involved, so there is nothing whose origin could be unknown.
+    expect(rendered.envelope.warnings).toEqual([]);
+    expect(statSync(join(repo, "docs/media/how-it-works.mp4")).size).toBeGreaterThan(20_000);
   }, 600_000);
 
   it("makes a banner and slides from facts, and binds the slides into a PDF", () => {

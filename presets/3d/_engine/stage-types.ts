@@ -39,6 +39,38 @@ export type StageObject = {
   effects: { ripple: boolean; sparks: boolean; popOut: boolean };
 };
 
+/** A vector icon: one filled path in a square view box. */
+export type StageIcon = { path: string; viewBox: number };
+
+/** A plate with an icon and text: a service, a module, a step of an explanation. */
+export type StageCard = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon?: StageIcon;
+  /** Accent colour of the icon tile, as a CSS colour. */
+  color: string;
+  theme: "light" | "dark";
+  /** Width of the plate in scene units. */
+  width: number;
+  base: Transform;
+  keyframes: TransformKey[];
+  /** The card pops in at this moment and, if set, shrinks away at `exitAt`. */
+  enterAt: number;
+  exitAt?: number;
+};
+
+/** A connection drawn between two objects, with pulses travelling along it to show a call or a data flow. */
+export type StageLink = {
+  from: string;
+  to: string;
+  /** When the line is drawn. */
+  at: number;
+  color: string;
+  /** Moments at which a pulse leaves `from`. */
+  pulses: number[];
+};
+
 export type CameraFocus = {
   object: string;
   /** Point of the page to look at; the centre of the screen when omitted. */
@@ -69,6 +101,8 @@ export type StageProps = {
   background: string;
   captionColor: string;
   objects: StageObject[];
+  cards: StageCard[];
+  links: StageLink[];
   camera: { fov: number; keys: CameraKey[] };
   effects: StageEffect[];
   captions: StageCaption[];

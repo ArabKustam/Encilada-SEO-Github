@@ -138,6 +138,7 @@ interface PlanFlags extends CommonFlags {
   lang?: string;
   hero?: string;
   heroDark?: string;
+  banner?: string;
 }
 
 /** Options from disk, overridden by any flags given on this run. */
@@ -149,6 +150,7 @@ function resolveOptions(repo: string, flags: PlanFlags): Options {
     language: (flags.lang as Language | undefined) ?? saved.language,
     hero: flags.hero ?? saved.hero,
     heroDark: flags.heroDark ?? saved.heroDark,
+    banner: flags.banner ?? saved.banner,
   };
 }
 
@@ -258,7 +260,8 @@ export function registerReadme(program: Command): void {
       .option("--preset <name>", "пресет оформления; см. readme presets")
       .option("--lang <code>", `язык README: ${LANGUAGES.join(", ")} (по умолчанию ru)`)
       .option("--hero <file>", "главное изображение или GIF, путь относительно репозитория")
-      .option("--hero-dark <file>", "вариант главного изображения для тёмной темы");
+      .option("--hero-dark <file>", "вариант главного изображения для тёмной темы")
+      .option("--banner <file>", "баннер над названием (см. repokit studio banner --size wide)");
 
   readme.command("presets").description("список пресетов оформления").option("--json", "один JSON-документ в stdout")
     .action((flags: { json?: boolean }) => runCommand("readme", "presets", flags, presets));

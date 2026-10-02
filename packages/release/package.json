@@ -1,0 +1,21 @@
+{
+  "name": "@repokit/release",
+  "version": "0.1.0",
+  "description": "repokit release: релиз на GitHub с описанием из фактов о проекте",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repokit/core": "workspace:*",
+    "@repokit/readme": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}

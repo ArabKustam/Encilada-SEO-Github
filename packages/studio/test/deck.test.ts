@@ -58,23 +58,23 @@ describe("deckFromFacts", () => {
 describe("resolveDeck", () => {
   const deck = (slides: Deck["slides"]): Deck => ({ schemaVersion: 1, slides });
 
-  it("colours known technologies and leaves unknown ones neutral", () => {
-    const { props } = resolveDeck(repo, deck([{ layout: "chips", chips: ["Python", "Наш собственный движок", { label: "Особая", color: "ff0000" }] }]));
-    expect(props.slides[0].chips).toEqual([{ label: "Python", color: "3670A0" }, { label: "Наш собственный движок", color: undefined }, { label: "Особая", color: "ff0000" }]);
+  it("colours known technologies and leaves unknown ones neutral", async () => {
+    const { props } = await resolveDeck(repo, deck([{ layout: "chips", chips: ["Python", "Наш собственный движок", { label: "Особая", color: "ff0000" }] }]));
+    expect(props.slides[0].chips).toEqual([{ label: "Python", color: "3670A0", icon: expect.any(String) }, { label: "Наш собственный движок" }, { label: "Особая", color: "ff0000" }]);
     expect(props).toMatchObject({ width: 1920, height: 1080, durationInFrames: 1 });
   });
 
-  it("copies images into the render and flags ones it did not capture", () => {
-    const { files, warnings, props } = resolveDeck(repo, deck([{ layout: "image", image: "shot.png" }]));
+  it("copies images into the render and flags ones it did not capture", async () => {
+    const { files, warnings, props } = await resolveDeck(repo, deck([{ layout: "image", image: "shot.png" }]));
     expect(files).toEqual([{ source: join(repo, "shot.png"), name: "slide-1.png" }]);
     expect(props.slides[0].image).toBe("slide-1.png");
     expect(warnings[0]).toContain("происхождение неизвестно");
   });
 
-  it("refuses missing images, non-images and an image slide without an image", () => {
-    expect(() => resolveDeck(repo, deck([{ layout: "split", image: "nope.png" }]))).toThrow(/не найдено/);
-    expect(() => resolveDeck(repo, deck([{ layout: "split", image: "README.md" }]))).toThrow(/не изображение/);
-    expect(() => resolveDeck(repo, deck([{ layout: "image" }]))).toThrow(/нужно изображение/);
+  it("refuses missing images, non-images and an image slide without an image", async () => {
+    await expect(resolveDeck(repo, deck([{ layout: "split", image: "nope.png" }]))).rejects.toThrow(/не найдено/);
+    await expect(resolveDeck(repo, deck([{ layout: "split", image: "README.md" }]))).rejects.toThrow(/не изображение/);
+    await expect(resolveDeck(repo, deck([{ layout: "image" }]))).rejects.toThrow(/нужно изображение/);
   });
 });
 
