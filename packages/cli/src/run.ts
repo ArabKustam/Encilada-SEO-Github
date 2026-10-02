@@ -1,14 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
 import {
   ExitCode, readArtifact, REPOKIT_DIR, repoRelative, resolveRepo, runCommand, UsageError, writeArtifact,
   type CommandResult, type Envelope, type HumanTodo,
 } from "@repokit/core";
 
-const BIN = fileURLToPath(new URL("./bin.js", import.meta.url));
+/** The script this process was started as: the same entry is used for every step, in a checkout and in a packaged build. */
+const BIN = process.argv[1];
 const STATE_FILE = "state.json";
 const DEFAULT_SCENARIO = "demo.scenario.yaml";
 const HERO = "docs/media/hero";

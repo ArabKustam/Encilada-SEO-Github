@@ -135,7 +135,7 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
   it("renders a walk-through of how the project is built, from its imports and API calls", () => {
     const made = repokit(["studio", "explain", "--out", "explain.scene.json"]);
     expect(made.code, made.stderr).toBe(0);
-    expect(made.envelope.data.facts).toEqual({ modules: 3, links: 3, services: [] });
+    expect(made.envelope.data.facts).toEqual({ modules: 3, links: 3, services: [], traces: 0, screen: null });
     const file = join(repo, "explain.scene.json");
     const scene = JSON.parse(readFileSync(file, "utf8"));
     Object.assign(scene.output, { width: 480, height: 270, fps: 10 });

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "compact",
+  "title": "Компактный",
+  "description": "Короткий README без медиа-шапки: суть, возможности, запуск, ограничения.",
+  "required": [
+    "header",
+    "features",
+    "quickstart",
+    "limitations",
+    "license"
+  ]
+}

@@ -5,6 +5,10 @@ description: Превращает README репозитория в понятн�
 
 # repokit
 
+> Этот файл — инструкция для работы **внутри рабочей копии repokit**. Для любого другого проекта используется плагин
+> Claude Code: skill [plugin/skills/readme/SKILL.md](plugin/skills/readme/SKILL.md), команда `repokit` и MCP-инструменты —
+> см. [docs/claude-code-plugin.md](docs/claude-code-plugin.md).
+
 Набор CLI-сервисов. Они дают факты и проверки; формулировки и решения — твои и пользователя.
 Сервисы не вызывают LLM и не ходят в сеть без явного флага.
 
@@ -51,10 +55,11 @@ description: Превращает README репозитория в понятн�
 | `repokit studio render --preset <имя> --slot main=<файл> --out … --gif` | медиа на экране 3D-устройства |
 | `repokit studio still --preset <имя> --slot main=<файл> --frame N --out x.png` | один кадр пресета для быстрой проверки |
 | `repokit studio scene init` / `scene validate --scene f` | режиссёрская сцена (JSON): заготовка из записи и проверка |
-| `repokit studio scene templates` / `scene make --template <имя> --pages a.png,b.png` | готовая постановка из нескольких скриншотов: `carousel`, `stack`, `swap`, `wall`, `duo` |
+| `repokit studio scene gallery` | по кадру каждого из 28 шаблонов на скриншотах проекта → `.repokit/scenes/index.html` и готовые файлы сцен |
+| `repokit studio scene templates` / `scene make --template <имя> [--pages a.png,b.png]` | список шаблонов; сцена по шаблону (без `--pages` — из записанных скриншотов) |
 | `repokit studio still --scene f --at <сек> --out x.png` / `studio render --scene f --out … --gif` | кадр сцены и весь ролик |
 | `repokit studio banner --out x.png [--size wide]` / `studio deck init` / `studio deck render --deck f --pdf` | баннер и слайды из фактов о проекте |
-| `repokit studio explain` | сцена-разбор устройства проекта: карточки модулей, связи из кода |
+| `repokit studio explain [--detail full]` | сцена-разбор устройства проекта: карточки модулей, связи из кода; `full` — скриншот интерфейса, модели, путь каждого запроса |
 | `studio render … --webm --click-sounds --music <файл>` | WebM и звук |
 | `repokit release plan` / `release create --confirm` | описание релиза из фактов; создание через `gh`, если релиза ещё нет |
 
@@ -119,6 +124,7 @@ description: Превращает README репозитория в понятн�
 - Координаты кликов и рамки элементов бери из `events.json` (поля `x`, `y`, `box`), моменты времени — из поля `t`.
 - После каждой правки: `studio still --scene f --at <сек>` и **открой PNG**. Не рендерь весь ролик, пока кадры в ключевые моменты не выглядят как надо.
 - На экранах — только записи из `capture`. В `captions` пиши только то, что в этот момент видно на экране.
+- Выбор постановки: `studio scene gallery`, открой кадры из `.repokit/scenes/` и выбери по ним, а не по названию; покажи пользователю `index.html`.
 - Несколько экранов приложения — `studio scene make`: страницы бери из `capture shots` или `capture screenshot`, порядок — как в реальном пути пользователя. Курсор: `"cursor": "arrow" | "hand" | "dot" | "ring"`.
 - Карточки (`cards`) и связи (`links`) — для схем и пояснений. `studio explain` строит разбор из кода; дополняя его, называй в карточках и подписях только те модули, роуты и сервисы, которые нашёл в исходниках (проверь по `scan.json` и самим файлам). Не рисуй связь, которой в коде нет.
 - Музыку не выбирай сам: `--music` — только файл, который дал пользователь.

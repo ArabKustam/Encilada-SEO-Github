@@ -1,0 +1,72 @@
+# README headings and service phrases in English.
+headings:
+  stack: Tech stack
+  problem: Problem
+  solution: Solution
+  features: Features
+  demo: Demo
+  architecture: Architecture
+  routes: API and pages
+  packages: Packages
+  quickstart: Quick start
+  usage: Usage
+  commands: Commands
+  options: Options
+  configuration: Configuration
+  judges: For judges
+  limitations: Limitations & Roadmap
+  team: Team
+  license: License
+phrases:
+  heroAlt: "{title} in action"
+  demoData: Demo data
+  partial: "partial"
+  evidence: "code"
+  liveDemo: "Open the live version"
+  watchVideo: "Watch the video"
+  coldStart: "free hosting: the first load may take up to a minute"
+  showCode: "Show code"
+  filesCount: "{n} files"
+  actionDemo: "Demo"
+  actionDocs: "Documentation"
+  actionStart: "Quick start"
+  clone: "Clone"
+  source: "Source"
+  fromTest: "from a test"
+  command: Command
+  option: Option
+  description: Description
+  variable: Variable
+  required: Required
+  optional: optional
+  yes: "yes"
+  no: "no"
+  readAt: Read in
+  package: Package
+  envIntro: "Values are set in the environment; none are stored in the repository."
+  envExample: "Copy `{file}` to `.env` and fill in the values."
+  envFirst: "Set the environment variables before running — see “{name}”."
+  requirements: "You will need"
+  install: "Install"
+  run: "Run"
+  test: "Tests"
+  architectureIntro: "The diagram is built from imports and API calls found in the code."
+  userNode: "User"
+  routesCount: "routes: {n}"
+  modelsCount: "models: {n}"
+  method: Method
+  path: Path
+  where: Where in the code
+  criterion: Criterion
+  weight: Weight
+  proof: Evidence
+  defaultProfile: "No hackathon rules were provided: the criteria come from a typical set."
+  submission: "Submission requirements"
+  mockItem: "{text} — currently a stub"
+  partialItem: "{text} — partially implemented"
+  noTests: "There are no automated tests."
+  roadmap: "Planned"
+  licenseLine: "Released under the {name} license — see [{file}]({file})."
+  licenseUnknown: "Terms of use are in [{file}]({file})."
+  details: "Details"
+  seeSection: "section “{name}”"

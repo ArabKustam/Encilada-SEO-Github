@@ -5,5 +5,6 @@ export * from "./files.js";
 export * from "./manifest.js";
 export * from "./readme-slots.js";
 export * from "./redact.js";
+export * from "./resources.js";
 export * from "./schema.js";
 export * from "./tools.js";

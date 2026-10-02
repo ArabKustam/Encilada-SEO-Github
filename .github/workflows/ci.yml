@@ -28,6 +28,10 @@ jobs:
       - run: pnpm test
       - name: Smoke test the CLI on a fixture
         run: node packages/cli/dist/bin.js scan audit --repo examples/web-app --dry-run --json
+      - name: The committed plugin matches the sources
+        run: node scripts/build-plugin.mjs --check
+      - name: Smoke test the packaged tool
+        run: node plugin/bin/repokit readme layout --repo examples/cli-tool --dry-run --json
 
   media:
     name: capture + studio (real recording)

@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+// Entry point of the packaged repokit. It only says where the bundled data lives and
+// loads the bundle; all logic is in lib/repokit.mjs, built from packages/ of the repository.
+const { join } = require("node:path");
+const { pathToFileURL } = require("node:url");
+
+const root = join(__dirname, "..");
+process.env.REPOKIT_RESOURCES = process.env.REPOKIT_RESOURCES || join(root, "resources");
+import(pathToFileURL(join(root, "lib", "repokit.mjs")).href).catch((error) => {
+  process.stderr.write(`repokit: ${error && error.stack ? error.stack : error}\n`);
+  process.exit(1);
+});

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/scenario",
+  "title": "Scenario",
+  "description": "Сценарий записи демо: что пользователь делает в реальном приложении.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "baseUrl", "steps"],
+  "$defs": {
+    "selector": { "type": "string", "minLength": 1 }
+  },
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "name": { "type": "string" },
+    "baseUrl": { "type": "string", "pattern": "^https?://" },
+    "start": {
+      "type": "object",
+      "description": "Как запустить приложение перед записью. Если readyUrl уже отвечает, команда не выполняется.",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "readyUrl": { "type": "string" },
+        "timeoutSec": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "integer", "minimum": 320 },
+        "height": { "type": "integer", "minimum": 240 },
+        "deviceScaleFactor": { "type": "number", "minimum": 1, "maximum": 3 }
+      }
+    },
+    "colorScheme": { "enum": ["light", "dark"] },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "storageState": { "type": "string", "description": "Путь к storageState тестового аккаунта, обычно ${env:ИМЯ}" }
+      }
+    },
+    "mask": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/selector" },
+      "description": "Селекторы, которые размываются в кадре. input[type=password] размывается всегда."
+    },
+    "demoData": { "type": "boolean", "description": "В кадре демонстрационные данные — будет помечено в манифесте." },
+    "pace": { "enum": ["human", "fast"] },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "maxProperties": 1,
+        "properties": {
+          "goto": { "type": "string" },
+          "click": { "$ref": "#/$defs/selector" },
+          "hover": { "$ref": "#/$defs/selector" },
+          "type": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["selector", "text"],
+            "properties": { "selector": { "$ref": "#/$defs/selector" }, "text": { "type": "string" } }
+          },
+          "press": { "type": "string", "minLength": 1 },
+          "scroll": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "maxProperties": 1,
+            "properties": { "to": { "$ref": "#/$defs/selector" }, "by": { "type": "number" } }
+          },
+          "wait": {
+            "oneOf": [
+              { "type": "number", "minimum": 0 },
+              { "type": "object", "additionalProperties": false, "required": ["for"], "properties": { "for": { "$ref": "#/$defs/selector" } } }
+            ]
+          },
+          "mark": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+        }
+      }
+    }
+  }
+}

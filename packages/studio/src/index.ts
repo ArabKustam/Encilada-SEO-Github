@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import type { Command } from "commander";
 import {
@@ -6,6 +6,7 @@ import {
   writeArtifact,
   type Artifact, type CommandResult, type CommonFlags, type MediaEntry,
 } from "@repokit/core";
+import { insideRepo, readManifest, REPOKIT_DIR } from "@repokit/core";
 import { STAGE_COMPOSITION_ID, STAGE_DEVICES, type StageDevice } from "@repokit/presets/stage-types";
 import { PRESET_COMPOSITION_ID, type PresetDefinition } from "@repokit/presets/types";
 import { addSound, encodeWebm, hasSound, SOUND_DEFAULTS, type SoundTrack } from "./audio.js";
@@ -14,10 +15,10 @@ import { DEFAULT_GIF_BUDGET_BYTES, encodeGif, encodePoster, encodeWebp, type Gif
 import { explainScene } from "./explain.js";
 import { GENERIC_ICONS } from "./icons.js";
 import { findPreset, listPresets, resolvePreset } from "./presets.js";
-import { glBackend, renderStills, renderVideo, type RenderJob } from "./render.js";
+import { GL_BACKENDS, glBackend, renderStills, renderVideo, type RenderJob } from "./render.js";
 import { COMPOSITION_ID, DECK_COMPOSITION_ID, STYLE_NAMES, type StyleName } from "./remotion/props.js";
 import { BACKGROUND_NAMES, loadScene, resolveScene, starterScene, type BackgroundName, type Scene } from "./scene.js";
-import { buildFromTemplate, listSceneTemplates } from "./templates.js";
+import { buildFromTemplate, findSceneTemplate, GROUP_TITLES, listSceneTemplates, pagesRange, previewMoment, type SceneTemplate, type TemplateGroup, type TemplateOptions } from "./templates.js";
 import { captureRunDir, loadTimeline, resolveTimeline, timelineFromCapture, type Timeline } from "./timeline.js";
 
 export { buildFromTemplate, listSceneTemplates } from "./templates.js";
@@ -391,38 +392,173 @@ interface SceneMakeFlags extends CommonFlags {
   background: string;
   hold: string;
   move: string;
+  duration: string;
   out: string;
   force?: boolean;
+  gl?: string;
 }
 
-function sceneTemplates(): CommandResult<{ templates: { name: string; title: string; description: string; pages: string }[] }> {
-  const templates = listSceneTemplates().map((t) => ({ name: t.name, title: t.title, description: t.description, pages: t.minPages === t.maxPages ? String(t.minPages) : `${t.minPages}–${t.maxPages}` }));
-  return { data: { templates }, summary: templates.map((t) => `${t.name} — ${t.title}: ${t.description}. Страниц: ${t.pages}`) };
+function sceneTemplates(): CommandResult<{ templates: { name: string; group: TemplateGroup; title: string; description: string; pages: string }[] }> {
+  const templates = listSceneTemplates().map((t) => ({ name: t.name, group: t.group, title: t.title, description: t.description, pages: t.minPages === t.maxPages ? String(t.minPages) : `${t.minPages}–${t.maxPages}` }));
+  return {
+    data: { templates },
+    summary: (Object.keys(GROUP_TITLES) as TemplateGroup[]).flatMap((group) => [
+      `${GROUP_TITLES[group]}:`,
+      ...templates.filter((t) => t.group === group).map((t) => `  ${t.name.padEnd(12)} ${t.title} — ${t.description}. Страниц: ${t.pages}`),
+    ]),
+  };
 }
 
-async function sceneMake(flags: SceneMakeFlags): Promise<CommandResult<{ file: string; template: string; scene: Scene }>> {
-  const repo = resolveRepo(flags.repo);
-  if (!flags.template) throw new UsageError(`Укажите шаблон: --template ${listSceneTemplates().map((t) => t.name).join(" | ")}`);
+/** Screenshots repokit has taken of this project, newest first: what a template is filled with when no pages are named. */
+function recordedPages(repo: string): { desktop: string[]; mobile: string[] } {
+  const shots = readManifest(repo).media
+    .filter((m) => m.kind === "screenshot" && /\.(png|jpe?g|webp)$/i.test(m.path) && existsSync(insideRepo(repo, m.path)))
+    .sort((x, y) => y.createdAt.localeCompare(x.createdAt) || x.path.localeCompare(y.path));
+  // One picture per page: the same shot in another theme or size is not another page.
+  const pageOf = (path: string) => path.split("/").pop()!.replace(/\.[^.]+$/, "").replace(/-(desktop|tablet|mobile|light|dark)/g, "");
+  const pick = (mobile: boolean) => {
+    const seen = new Set<string>();
+    return shots.filter((m) => /-(mobile)\b/.test(m.path) === mobile && !/-(tablet|dark)\b/.test(m.path))
+      .filter((m) => !seen.has(pageOf(m.path)) && seen.add(pageOf(m.path)))
+      .map((m) => m.path).reverse();
+  };
+  return { desktop: pick(false), mobile: pick(true) };
+}
+
+/** The pages a template gets from what has been recorded, or null when there are not enough of the right kind. */
+function pagesFor(template: SceneTemplate, pool: { desktop: string[]; mobile: string[] }): string[] | null {
+  const { desktop, mobile } = pool;
+  let pages: string[];
+  if (template.name === "duo") pages = desktop[0] && mobile[0] ? [desktop.at(-1)!, mobile.at(-1)!] : [];
+  else if (template.name === "trio") pages = desktop.length >= 1 && mobile[0] ? [desktop[0], desktop.at(-1)!, mobile.at(-1)!] : [];
+  else if (template.name === "phone-row") pages = mobile;
+  else if (template.group === "single") pages = desktop.slice(-1);
+  else pages = desktop;
+  pages = pages.slice(0, template.maxPages);
+  return pages.length >= template.minPages ? pages : null;
+}
+
+function templateOptions(flags: SceneMakeFlags): Omit<TemplateOptions, "pages"> {
   if (!STAGE_DEVICES.includes(flags.device as StageDevice)) throw new UsageError(`--device: ожидается одно из ${STAGE_DEVICES.join(", ")}`);
   if (!BACKGROUND_NAMES.includes(flags.background as BackgroundName)) throw new UsageError(`--background: ожидается одно из ${BACKGROUND_NAMES.join(", ")}`);
-  const hold = Number(flags.hold);
-  const move = Number(flags.move);
-  if (!(hold >= 0.5 && hold <= 10) || !(move >= 0.3 && move <= 4)) throw new UsageError("--hold: от 0.5 до 10 секунд; --move: от 0.3 до 4 секунд");
-  const pages = (flags.pages ?? "").split(",").map((p) => p.trim().split("\\").join("/")).filter(Boolean);
+  const [hold, move, duration] = [Number(flags.hold), Number(flags.move), Number(flags.duration)];
+  if (!(hold >= 0.5 && hold <= 10) || !(move >= 0.3 && move <= 4) || !(duration >= 2 && duration <= 30)) {
+    throw new UsageError("--hold: от 0.5 до 10 секунд; --move: от 0.3 до 4 секунд; --duration: от 2 до 30 секунд");
+  }
+  return { device: flags.device as StageDevice, background: flags.background as BackgroundName, hold, move, duration };
+}
+
+const NO_PAGES = "Скриншотов этого проекта ещё нет. Снимите их: repokit capture screenshot --url <адрес> или repokit capture shots --scenario <файл>; либо укажите файлы: --pages a.png,b.png";
+
+async function sceneMake(flags: SceneMakeFlags): Promise<CommandResult<{ file: string; template: string; pages: string[]; scene: Scene }>> {
+  const repo = resolveRepo(flags.repo);
+  if (!flags.template) throw new UsageError(`Укажите шаблон: --template <имя>; список — repokit studio scene templates`);
+  const template = findSceneTemplate(flags.template);
+  const options = templateOptions(flags);
+  const named = (flags.pages ?? "").split(",").map((p) => p.trim().split("\\").join("/")).filter(Boolean);
+  // Without --pages the template is filled with the screenshots already taken of this project.
+  const pages = named.length > 0 ? named : pagesFor(template, recordedPages(repo));
+  if (!pages) throw new UsageError(`Шаблону «${template.name}» нужно страниц: ${pagesRange(template)}. ${NO_PAGES}`);
   const target = resolve(repo, flags.out);
   if (existsSync(target) && !flags.force) throw new UsageError(`${flags.out} уже существует. Перезаписать: --force`);
-  const scene = buildFromTemplate(flags.template, { pages, device: flags.device as StageDevice, background: flags.background as BackgroundName, hold, move });
+  const scene = buildFromTemplate(template.name, { ...options, pages });
   requireTool("ffprobe");
   const { warnings } = await resolveScene(repo, scene);
   if (!flags.dryRun) writeFileSync(target, JSON.stringify(scene, null, 2) + "\n");
   return {
-    data: { file: repoRelative(repo, target), template: flags.template, scene },
+    data: { file: repoRelative(repo, target), template: template.name, pages, scene },
     warnings,
     summary: [
-      `${flags.dryRun ? "dry-run: была бы создана" : "создана"} сцена ${repoRelative(repo, target)} по шаблону «${flags.template}»: страниц ${pages.length}, ${scene.output.duration} с`,
+      `${flags.dryRun ? "dry-run: была бы создана" : "создана"} сцена ${repoRelative(repo, target)} по шаблону «${template.name}»: ${scene.output.duration} с`,
+      `страницы${named.length > 0 ? "" : " (взяты из записанных скриншотов)"}: ${pages.join(", ")}`,
       "это обычная сцена: позиции, повороты, камеру и длительность можно править в файле",
       `посмотреть кадр: repokit studio still --scene ${flags.out} --at 1 --out .repokit/out/look.png`,
       `рендер: repokit studio render --scene ${flags.out} --out docs/media/pages.mp4 --gif`,
+    ],
+  };
+}
+
+interface GalleryItem {
+  template: string;
+  title: string;
+  scene: string;
+  still: string;
+  pages: string[];
+}
+
+const GALLERY_DIR = "scenes";
+
+/** One frame of every template that fits, made from this project's own screenshots: a way to choose by looking. */
+async function sceneGallery(flags: SceneMakeFlags): Promise<CommandResult<{ index: string | null; items: GalleryItem[]; skipped: { template: string; reason: string }[] }>> {
+  const repo = resolveRepo(flags.repo);
+  const options = templateOptions(flags);
+  const named = (flags.pages ?? "").split(",").map((p) => p.trim().split("\\").join("/")).filter(Boolean);
+  const pool = named.length > 0 ? { desktop: named.filter((p) => !/mobile/i.test(p)), mobile: named.filter((p) => /mobile/i.test(p)) } : recordedPages(repo);
+  if (pool.desktop.length === 0 && pool.mobile.length === 0) throw new UsageError(NO_PAGES);
+  requireTool("ffprobe");
+
+  const dir = join(repo, REPOKIT_DIR, GALLERY_DIR);
+  const items: GalleryItem[] = [];
+  const skipped: { template: string; reason: string }[] = [];
+  const warnings = new Set<string>();
+  if (!flags.dryRun) mkdirSync(dir, { recursive: true });
+  for (const template of listSceneTemplates()) {
+    const pages = pagesFor(template, pool);
+    if (!pages) {
+      skipped.push({ template: template.name, reason: `нужно страниц: ${pagesRange(template)}${["duo", "trio", "phone-row"].includes(template.name) ? " (с мобильными скриншотами)" : ""}` });
+      continue;
+    }
+    const scene = buildFromTemplate(template.name, { ...options, pages });
+    const sceneFile = join(dir, `${template.name}.scene.json`);
+    const stillFile = join(dir, `${template.name}.png`);
+    items.push({ template: template.name, title: template.title, scene: repoRelative(repo, sceneFile), still: repoRelative(repo, stillFile), pages });
+    if (flags.dryRun) continue;
+    writeFileSync(sceneFile, JSON.stringify(scene, null, 2) + "\n");
+    const plan = await planScene(repo, { repo: flags.repo, scene: sceneFile, slot: [], gl: flags.gl });
+    plan.warnings.forEach((w) => warnings.add(w.replace(/объект «[^»]+»: /, "")));
+    const frame = Math.min(plan.durationInFrames - 1, Math.round(previewMoment(template, { ...options, pages }, scene) * plan.fps));
+    await renderStills(plan.job, [{ frame, output: stillFile }]);
+    say(`[studio scene gallery] ${template.name}`);
+  }
+
+  let index: string | null = null;
+  if (!flags.dryRun) {
+    const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const card = (item: GalleryItem) => {
+      const template = findSceneTemplate(item.template);
+      const command = `repokit studio render --scene ${item.scene} --out docs/media/${item.template}.mp4 --gif`;
+      return `<figure><img src="${item.template}.png" alt="${escape(template.title)}" loading="lazy"><figcaption><b>${item.template}</b> — ${escape(template.title)}<br><span>${escape(template.description)}</span><code>${escape(command)}</code></figcaption></figure>`;
+    };
+    const html = `<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Шаблоны сцен</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { margin: 0; padding: 24px; font: 15px/1.5 system-ui, sans-serif; background: #0d1117; color: #e6edf3; }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 12px; color: #8b949e; font-weight: 600; }
+  p { margin: 0; color: #8b949e; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  figure { margin: 0; background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+  img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #fff; }
+  figcaption { padding: 10px 12px 12px; } span { color: #8b949e; font-size: 13px; }
+  code { display: block; margin-top: 8px; padding: 6px 8px; background: #0d1117; border-radius: 6px; font-size: 12px; color: #7ee787; overflow-wrap: anywhere; user-select: all; }
+</style></head><body>
+<h1>Шаблоны сцен</h1>
+<p>Один кадр каждого шаблона на скриншотах этого проекта. Команда под картинкой рендерит ролик; файл сцены рядом можно править.</p>
+${(Object.keys(GROUP_TITLES) as TemplateGroup[]).map((group) => {
+      const own = items.filter((i) => findSceneTemplate(i.template).group === group);
+      return own.length === 0 ? "" : `<h2>${escape(GROUP_TITLES[group])}</h2>\n<div class="grid">\n${own.map(card).join("\n")}\n</div>`;
+    }).join("\n")}
+</body></html>
+`;
+    writeFileSync(join(dir, "index.html"), html);
+    index = repoRelative(repo, join(dir, "index.html"));
+  }
+  return {
+    data: { index, items, skipped },
+    warnings: [...warnings],
+    summary: [
+      `${flags.dryRun ? "dry-run: были бы сняты кадры шаблонов" : "кадры шаблонов"}: ${items.length} из ${listSceneTemplates().length}${index ? ` — откройте ${index}` : ""}`,
+      ...skipped.map((s) => `  пропущен ${s.template}: ${s.reason}`),
+      `выбранный шаблон рендерится так: repokit studio render --scene ${REPOKIT_DIR}/${GALLERY_DIR}/<имя>.scene.json --out docs/media/<имя>.mp4 --gif`,
     ],
   };
 }
@@ -468,6 +604,7 @@ async function sceneInit(flags: SceneInitFlags): Promise<CommandResult<{ file: s
 }
 
 interface ExplainFlags extends CommonFlags {
+  detail: string;
   out: string;
   theme: string;
   force?: boolean;
@@ -478,7 +615,8 @@ async function explainInit(flags: ExplainFlags): Promise<CommandResult<{ file: s
   if (!BACKGROUND_NAMES.includes(flags.theme as BackgroundName)) throw new UsageError(`--theme: ожидается одно из ${BACKGROUND_NAMES.join(", ")}`);
   const target = resolve(repo, flags.out);
   if (existsSync(target) && !flags.force) throw new UsageError(`${flags.out} уже существует. Перезаписать: --force`);
-  const { scene, humanTodo, facts } = explainScene(repo, flags.theme as BackgroundName);
+  if (flags.detail !== "overview" && flags.detail !== "full") throw new UsageError("--detail: overview или full");
+  const { scene, humanTodo, facts } = explainScene(repo, flags.theme as BackgroundName, { detail: flags.detail });
   const { warnings } = await resolveScene(repo, scene);
   if (!flags.dryRun) writeFileSync(target, JSON.stringify(scene, null, 2) + "\n");
   return {
@@ -486,7 +624,7 @@ async function explainInit(flags: ExplainFlags): Promise<CommandResult<{ file: s
     warnings,
     humanTodo,
     summary: [
-      `${flags.dryRun ? "dry-run: был бы создан" : "создан"} разбор ${repoRelative(repo, target)}: модулей ${facts.modules}, связей ${facts.links}${facts.services.length ? `, сервисы: ${facts.services.join(", ")}` : ""}; ${scene.output.duration} с`,
+      `${flags.dryRun ? "dry-run: был бы создан" : "создан"} разбор ${repoRelative(repo, target)}: модулей ${facts.modules}, связей ${facts.links}${facts.services.length ? `, сервисы: ${facts.services.join(", ")}` : ""}${facts.traces ? `, запросов прослежено ${facts.traces}` : ""}${facts.screen ? `, интерфейс — ${facts.screen}` : ""}; ${scene.output.duration} с`,
       "карточки и связи взяты из кода: импорты, обращения к API, объявленные зависимости. Подписи можно уточнять, но только тем, что есть в коде",
       `рендер: repokit studio render --scene ${flags.out} --out docs/media/how-it-works.mp4 --webm`,
     ],
@@ -638,18 +776,24 @@ export function registerStudio(program: Command): void {
     .option("--out <file>", "куда сохранить сцену", "demo.scene.json")
     .option("--force", "перезаписать существующий файл")
     .action((flags: SceneInitFlags) => runCommand("studio", "scene init", flags, () => sceneInit(flags)));
-  jsonOnly(scene.command("templates").description("готовые постановки для нескольких страниц: карусель, стопка, смена страниц, стена, ноутбук и телефон"))
+  const templateFlags = (c: Command) =>
+    commonFlags(c)
+      .option("--pages <files>", "скриншоты или записи страниц через запятую, в порядке показа; без флага берутся записанные скриншоты проекта")
+      .option("--device <name>", `устройство: ${STAGE_DEVICES.join(", ")}`, "browser")
+      .option("--background <name>", `фон: ${BACKGROUND_NAMES.join(", ")}`, "light")
+      .option("--hold <sec>", "сколько секунд страница стоит впереди", "1.8")
+      .option("--move <sec>", "сколько секунд длится смена страницы", "0.9")
+      .option("--duration <sec>", "длина сцены с одной страницей", "6");
+  jsonOnly(scene.command("templates").description("готовые постановки: смена страниц, раскладки с пролётом камеры, движения одного окна"))
     .action((flags: { json?: boolean }) => runCommand("studio", "scene templates", flags, sceneTemplates));
-  commonFlags(scene.command("make").description("собрать сцену по шаблону из скриншотов страниц"))
+  templateFlags(scene.command("make").description("собрать сцену по шаблону из скриншотов страниц"))
     .option("--template <name>", "шаблон; см. studio scene templates")
-    .option("--pages <files>", "скриншоты или записи страниц через запятую, в порядке показа")
-    .option("--device <name>", `устройство: ${STAGE_DEVICES.join(", ")}`, "browser")
-    .option("--background <name>", `фон: ${BACKGROUND_NAMES.join(", ")}`, "light")
-    .option("--hold <sec>", "сколько секунд страница стоит впереди", "1.8")
-    .option("--move <sec>", "сколько секунд длится смена страницы", "0.9")
     .option("--out <file>", "куда сохранить сцену", "pages.scene.json")
     .option("--force", "перезаписать существующий файл")
     .action((flags: SceneMakeFlags) => runCommand("studio", "scene make", flags, () => sceneMake(flags)));
+  templateFlags(scene.command("gallery").description(`по одному кадру каждого шаблона на скриншотах проекта → .repokit/${GALLERY_DIR}/index.html`))
+    .option("--gl <backend>", `как рисовать WebGL: ${GL_BACKENDS.join(", ")}`)
+    .action((flags: SceneMakeFlags) => runCommand("studio", "scene gallery", flags, () => sceneGallery(flags)));
   commonFlags(scene.command("validate").description("проверить сцену: схема, файлы, длительность, ссылки на объекты"))
     .option("--scene <file>", "файл сцены")
     .action((flags: SourceFlags) => runCommand("studio", "scene validate", flags, () => sceneValidate(flags)));
@@ -657,6 +801,7 @@ export function registerStudio(program: Command): void {
   commonFlags(studio.command("explain").description("видеоразбор устройства проекта: карточки модулей и сервисов, связи из кода, камера идёт по пути запроса"))
     .option("--out <file>", "куда сохранить сцену разбора", "explain.scene.json")
     .option("--theme <name>", `оформление: ${BACKGROUND_NAMES.join(", ")}`, "dark")
+    .option("--detail <level>", "overview — модули и связи; full — ещё скриншот интерфейса, модели данных и путь каждого запроса по коду", "overview")
     .option("--force", "перезаписать существующий файл")
     .action((flags: ExplainFlags) => runCommand("studio", "explain", flags, () => explainInit(flags)));
   studio.command("icons").description("значки для карточек сцен").option("--json", "один JSON-документ в stdout")

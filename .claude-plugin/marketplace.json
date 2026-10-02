@@ -1,0 +1,25 @@
+{
+  "name": "encilada",
+  "owner": {
+    "name": "ArabKustam",
+    "url": "https://github.com/ArabKustam"
+  },
+  "metadata": {
+    "description": "Encilada tools for Claude Code: RepoKit — README as a presentation of the project"
+  },
+  "plugins": [
+    {
+      "name": "repokit",
+      "source": "./plugin",
+      "description": "Turns a repository's README into a clear presentation of the project: structure by project type, real screenshots and demos, examples from the code, checks of the first screen.",
+      "category": "documentation",
+      "tags": [
+        "readme",
+        "documentation",
+        "github",
+        "screenshots",
+        "demo"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+# Заголовки и служебные фразы README на русском.
+headings:
+  stack: Технологии
+  problem: Проблема
+  solution: Решение
+  features: Возможности
+  demo: Демо
+  architecture: Архитектура
+  routes: API и страницы
+  packages: Пакеты
+  quickstart: Быстрый старт
+  usage: Пример использования
+  commands: Команды
+  options: Опции
+  configuration: Настройка
+  judges: Для жюри
+  limitations: Ограничения и планы
+  team: Команда
+  license: Лицензия
+phrases:
+  heroAlt: "Демонстрация работы {title}"
+  demoData: Демонстрационные данные
+  partial: "частично"
+  evidence: "код"
+  liveDemo: "Открыть работающую версию"
+  watchVideo: "Смотреть видео"
+  coldStart: "бесплатный хостинг: первое открытие может занять до минуты"
+  showCode: "Показать код"
+  filesCount: "файлов: {n}"
+  actionDemo: "Демо"
+  actionDocs: "Документация"
+  actionStart: "Быстрый старт"
+  clone: "Клонирование"
+  source: "Источник"
+  fromTest: "из теста"
+  command: Команда
+  option: Опция
+  description: Описание
+  variable: Переменная
+  required: Обязательна
+  optional: необязательная
+  yes: да
+  no: нет
+  readAt: Где читается
+  package: Пакет
+  envIntro: "Значения задаются в окружении; в репозитории их нет."
+  envExample: "Скопируйте `{file}` в `.env` и заполните значения."
+  envFirst: "Перед запуском задайте переменные окружения — см. раздел «{name}»."
+  requirements: "Потребуется"
+  install: "Установка"
+  run: "Запуск"
+  test: "Тесты"
+  architectureIntro: "Схема построена по импортам и обращениям к API в коде."
+  userNode: "Пользователь"
+  routesCount: "роутов: {n}"
+  modelsCount: "моделей: {n}"
+  method: Метод
+  path: Путь
+  where: Где в коде
+  criterion: Критерий
+  weight: Вес
+  proof: Чем подтверждается
+  defaultProfile: "Правил хакатона не было: критерии взяты из типового набора."
+  submission: "Требования к подаче"
+  mockItem: "{text} — сейчас заглушка"
+  partialItem: "{text} — реализовано частично"
+  noTests: "Автоматических тестов нет."
+  roadmap: "В планах"
+  licenseLine: "Проект распространяется по лицензии {name} — см. [{file}]({file})."
+  licenseUnknown: "Условия использования — в файле [{file}]({file})."
+  details: "Подробнее"
+  seeSection: "раздел «{name}»"

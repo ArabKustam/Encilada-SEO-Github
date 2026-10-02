@@ -35,7 +35,23 @@ describe("explainScene", () => {
     ]);
     expect(scene.cards![2].subtitle).toBe("app/main.py · роутов: 7 · моделей: 2");
     expect(scene.links!.map((l) => `${l.from}>${l.to}`)).toEqual(["user>f-app-static-app-js", "f-app-static-app-js>f-app-main-py", "f-app-main-py>f-app-store-py"]);
-    expect(facts).toEqual({ modules: 3, links: 3, services: [] });
+    expect(facts).toEqual({ modules: 3, links: 3, services: [], traces: 0, screen: null });
+  });
+
+  it("in full detail traces real requests through the code and marks the stub", () => {
+    const { scene, facts, humanTodo } = explainScene(fixture("web-app"), "dark", { detail: "full" });
+    expect(validate("scene", scene)).toEqual({ valid: true, errors: [] });
+    expect(facts.traces).toBe(5);
+    const texts = scene.captions!.map((c) => c.text);
+    expect(texts).toContain("POST /api/tasks — app/main.py:44 → store.py");
+    expect(texts.find((t) => t.startsWith("GET /api/suggestions"))).toMatch(/заглушка \(строка \d+\)$/);
+    expect(texts).toContain("Модели данных описаны в app/main.py: TaskIn, Task");
+    // Every traced request travels along links that exist: a pulse is only ever added to a real connection.
+    const store = scene.links!.find((l) => l.to === "f-app-store-py")!;
+    expect(store.pulses!.length).toBe(2 + 4);
+    // No screenshot has been recorded in this copy, so the interface stays a card and the author is told.
+    expect(scene.objects).toBeUndefined();
+    expect(humanTodo.map((t) => t.id)).toContain("explain.screen");
   });
 
   it("captions name real files and real routes", () => {

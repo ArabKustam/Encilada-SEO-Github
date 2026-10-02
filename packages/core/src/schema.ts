@@ -1,11 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { UsageError } from "./exit.js";
+import { resourceDir } from "./resources.js";
 
 /** `schemas/` at the repository root is the source of truth for all data contracts. */
-const SCHEMA_DIR = fileURLToPath(new URL("../../../schemas/", import.meta.url));
+const SCHEMA_DIR = resourceDir("schemas");
 const SCHEMA_SUFFIX = ".schema.json";
 
 let ajv: Ajv2020 | null = null;

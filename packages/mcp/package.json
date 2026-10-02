@@ -1,0 +1,19 @@
+{
+  "name": "@repokit/mcp",
+  "version": "0.1.0",
+  "description": "repokit MCP: структурированные инструменты для Claude Code поверх CLI",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repokit/core": "workspace:*"
+  }
+}

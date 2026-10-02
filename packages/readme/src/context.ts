@@ -1,11 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { loadBrief, type Brief } from "@repokit/brief";
 import {
-  assertValid, listFiles, readArtifact, readManifest, readText, README_SLOTS, REPOKIT_DIR, UsageError,
+  assertValid, listFiles, resourceDir, readArtifact, readManifest, readText, README_SLOTS, REPOKIT_DIR, UsageError,
   type MediaManifest, type ReadmeSlotId,
 } from "@repokit/core";
 import { analyze, checkClaims, envVarUses, type ClaimsDoc, type EnvVarUse, type ScanResult } from "@repokit/scan";
@@ -13,7 +12,7 @@ import { extractExamples, type ExamplesDoc } from "./examples.js";
 import { detectProfile, type Profile, type Style } from "./profile.js";
 
 /** `presets/readme/` at the repository root. */
-const PRESETS_DIR = fileURLToPath(new URL("../../../presets/readme/", import.meta.url));
+const PRESETS_DIR = resourceDir("presets/readme");
 
 export const LANGUAGES = ["ru", "en"] as const;
 export type Language = (typeof LANGUAGES)[number];

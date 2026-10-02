@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/deploy",
+  "title": "DeployRecord",
+  "description": "Известный repokit адрес работающей версии и результат последней проверки. Пишется командой deploy check.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "provider", "url", "healthy", "status", "attempts", "latencyMs", "coldStart", "sleeps", "checkedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "provider": {
+      "enum": ["github-pages", "cloudflare-pages", "netlify", "vercel", "render", "fly", "hf-spaces", "streamlit-cloud", null]
+    },
+    "url": { "type": "string", "pattern": "^https?://" },
+    "healthy": { "type": "boolean", "description": "Сайт ответил успешно при последней проверке" },
+    "status": { "type": ["integer", "null"], "description": "Последний код ответа HTTP; null — соединиться не удалось" },
+    "attempts": { "type": "integer", "minimum": 1 },
+    "latencyMs": { "type": ["integer", "null"] },
+    "coldStart": { "type": "boolean", "description": "Ответ пришёл не с первой попытки или медленно" },
+    "sleeps": { "type": "boolean", "description": "Бесплатный тариф площадки усыпляет приложение при простое" },
+    "checkedAt": { "type": "string" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "repokit",
+  "version": "0.2.0",
+  "description": "Turns a repository's README into a clear presentation of the project: structure by project type, real screenshots and demos, examples from the code, checks of the first screen. Facts only — nothing is invented.",
+  "author": {
+    "name": "ArabKustam",
+    "url": "https://github.com/ArabKustam"
+  },
+  "homepage": "https://github.com/ArabKustam/Encilada-SEO-Github#readme",
+  "repository": "https://github.com/ArabKustam/Encilada-SEO-Github",
+  "license": "MIT",
+  "keywords": [
+    "readme",
+    "documentation",
+    "github",
+    "screenshots",
+    "demo",
+    "presentation"
+  ]
+}

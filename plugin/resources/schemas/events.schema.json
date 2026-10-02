@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/events",
+  "title": "CaptureEvents",
+  "description": "Лог действий при записи. Время — секунды от первого кадра видео, координаты — CSS-пиксели окна. Введённый текст не сохраняется.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "viewport", "duration", "fps", "events"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "deviceScaleFactor"],
+      "properties": {
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "deviceScaleFactor": { "type": "number" }
+      }
+    },
+    "duration": { "type": "number", "minimum": 0 },
+    "fps": { "type": "number", "exclusiveMinimum": 0 },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["t", "type"],
+        "properties": {
+          "t": { "type": "number", "minimum": 0 },
+          "type": { "enum": ["nav", "move", "click", "hover", "type", "press", "scroll", "mark"] },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "duration": { "type": "number", "minimum": 0 },
+          "chars": { "type": "integer", "minimum": 0 },
+          "dy": { "type": "number" },
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "url": { "type": "string" },
+          "selector": { "type": "string" },
+          "box": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y", "width", "height"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": { "type": "number" },
+              "height": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

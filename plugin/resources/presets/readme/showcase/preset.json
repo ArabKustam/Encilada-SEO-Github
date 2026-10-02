@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "showcase",
+  "title": "Витрина",
+  "description": "Шапка по центру с медиа, проблема и решение, возможности, демо, раздел для жюри. Для подачи на хакатон.",
+  "required": [
+    "header",
+    "hero",
+    "problem",
+    "solution",
+    "features",
+    "quickstart",
+    "limitations",
+    "license"
+  ]
+}

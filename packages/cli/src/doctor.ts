@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import type { Command } from "commander";
 import { ExitCode, findSystemBrowser, runCommand, type CommandResult } from "@repokit/core";
+import { runtimeBin, runtimeDir } from "./setup.js";
 
 interface Tool {
   name: string;
@@ -46,6 +47,18 @@ function doctor(): CommandResult<{ node: string; tools: ToolStatus[] }> {
       version: browser,
     },
   ];
+  // In a checkout the media services are part of the build; a packaged build gets them from `repokit setup`.
+  const packaged = Boolean(process.env.REPOKIT_RESOURCES);
+  if (packaged) {
+    tools.push({
+      name: "media",
+      required: false,
+      neededFor: "capture, studio, preview",
+      hint: "repokit setup",
+      found: runtimeBin() !== null,
+      version: runtimeBin() ? runtimeDir() : null,
+    });
+  }
   const nodeOk = Number(process.versions.node.split(".")[0]) >= MIN_NODE_MAJOR;
   const missingRequired = tools.some((t) => t.required && !t.found) || !nodeOk;
   return {

@@ -126,8 +126,8 @@ node packages/cli/dist/bin.js studio render --repo examples/web-app --preset lap
 Когда пресета мало: свои объекты, движение камеры к любой точке страницы, эффекты по кликам, карточки со значками и связи между ними,
 видеоразбор устройства проекта (`studio explain`) — см. [scenes.md](scenes.md).
 
-Готовые постановки для нескольких страниц (карусель, стопка, смена страниц, стена, ноутбук с телефоном) и стили курсора —
-в [scenes.md](scenes.md): `studio scene templates`, `studio scene make`.
+Готовые постановки (28 шаблонов: смена страниц, раскладки с пролётом камеры, движения одного окна), галерея для выбора
+и стили курсора — в [scenes.md](scenes.md): `studio scene gallery`, `studio scene templates`, `studio scene make`.
 
 ## Баннеры и слайды
 

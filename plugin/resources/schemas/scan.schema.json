@@ -1,0 +1,387 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repokit://schemas/scan",
+  "title": "Scan",
+  "description": "Факты о репозитории, собранные `repokit scan audit`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "treeSha256",
+    "project",
+    "entrypoints",
+    "routes",
+    "models",
+    "keyFiles",
+    "mocks",
+    "repoHealth",
+    "audit"
+  ],
+  "$defs": {
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "treeSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Хэш дерева файлов: одинаковый вход — одинаковый результат"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "types",
+        "languages",
+        "frameworks",
+        "dependencies",
+        "packageManager",
+        "commands"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "static-site",
+              "node-web",
+              "python-api",
+              "data-app",
+              "cli",
+              "docker",
+              "unknown"
+            ]
+          }
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "files",
+              "bytes"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "files": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "frameworks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "packageManager": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install": {
+              "type": "string"
+            },
+            "run": {
+              "type": "string"
+            },
+            "test": {
+              "type": "string"
+            }
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Имена объявленных зависимостей"
+        }
+      }
+    },
+    "entrypoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "kind",
+          "confidence"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "$ref": "#/$defs/line"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "method",
+          "path",
+          "file",
+          "line",
+          "framework",
+          "confidence"
+        ],
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "$ref": "#/$defs/line"
+          },
+          "framework": {
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          }
+        }
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "file",
+          "line",
+          "kind"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "$ref": "#/$defs/line"
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "keyFiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "reasons"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "mocks": {
+      "type": "array",
+      "description": "Места, похожие на заглушки и недоделки. Кандидаты в Limitations, а не в Features.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "line",
+          "kind",
+          "text"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "$ref": "#/$defs/line"
+          },
+          "kind": {
+            "enum": [
+              "todo",
+              "mock-marker",
+              "not-implemented",
+              "placeholder-text"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "repoHealth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "isGitRepo",
+        "readme",
+        "hasLicense",
+        "hasGitignore",
+        "hasTests",
+        "hasCi",
+        "fileCount",
+        "totalBytes",
+        "largeFiles",
+        "trackedJunk"
+      ],
+      "properties": {
+        "isGitRepo": {
+          "type": "boolean"
+        },
+        "readme": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "bytes"
+          ],
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "bytes": {
+              "type": "integer"
+            }
+          }
+        },
+        "hasLicense": {
+          "type": "boolean"
+        },
+        "hasGitignore": {
+          "type": "boolean"
+        },
+        "hasTests": {
+          "type": "boolean"
+        },
+        "hasCi": {
+          "type": "boolean"
+        },
+        "fileCount": {
+          "type": "integer"
+        },
+        "totalBytes": {
+          "type": "integer"
+        },
+        "largeFiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "bytes"
+            ],
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "trackedJunk": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "audit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warn",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

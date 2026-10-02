@@ -4,7 +4,8 @@ import type { Command } from "commander";
 import { ExitCode, NeedsHumanError, UsageError } from "./exit.js";
 import { redact } from "./redact.js";
 
-export const VERSION = "0.1.0";
+/** Kept equal to `version` in the root package.json; `scripts/build-plugin.mjs` refuses to build otherwise. */
+export const VERSION = "0.2.0";
 
 /** Something only a person can do or decide; collected into the "for human" checklist. */
 export interface HumanTodo {

@@ -9,6 +9,7 @@ const options = (pages: number): TemplateOptions => ({
   background: "light",
   hold: 2,
   move: 1,
+  duration: 6,
 });
 
 describe("scene templates", () => {
@@ -19,6 +20,27 @@ describe("scene templates", () => {
       expect(scene.objects!.map((o) => o.media)).toEqual(options(template.minPages).pages);
       // Templates stage what was recorded; they never add text of their own.
       expect(scene.captions).toEqual([]);
+      expect(scene.output.duration, template.name).toBeGreaterThanOrEqual(2);
+      const ids = new Set(scene.objects!.map((o) => o.id));
+      for (const key of scene.camera!.keyframes!) if (key.focus) expect(ids.has(key.focus.object), template.name).toBe(true);
+    }
+  });
+
+  it("offers a wide choice in three groups, with unique names", () => {
+    const templates = listSceneTemplates();
+    expect(templates.length).toBeGreaterThanOrEqual(25);
+    expect(new Set(templates.map((t) => t.name)).size).toBe(templates.length);
+    for (const group of ["pages", "layout", "single"]) expect(templates.filter((t) => t.group === group).length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("keeps every object's motion inside the scene and every key in order of time", () => {
+    for (const template of listSceneTemplates()) {
+      const scene = buildFromTemplate(template.name, options(template.maxPages));
+      for (const object of scene.objects!) {
+        const times = (object.keyframes ?? []).map((k) => k.at);
+        expect([...times].sort((a, b) => a - b), `${template.name}/${object.id}`).toEqual(times);
+        expect(Math.max(0, ...times), `${template.name}/${object.id}`).toBeLessThanOrEqual(scene.output.duration + 0.001);
+      }
     }
   });
 
@@ -40,7 +62,7 @@ describe("scene templates", () => {
   it("refuses a wrong number of pages and an unknown template", () => {
     expect(() => buildFromTemplate("duo", options(3))).toThrow(/ровно 2/);
     expect(() => buildFromTemplate("carousel", options(1))).toThrow(/от 2 до 8/);
-    expect(() => buildFromTemplate("spiral", options(2))).toThrow(/не найден/);
+    expect(() => buildFromTemplate("no-such-template", options(2))).toThrow(/не найден/);
   });
 
   it("accepts a named cursor style in a scene and rejects an unknown one", () => {

@@ -1,0 +1,32 @@
+name: Plugin validation
+
+# Checks the plugin and the marketplace with Claude Code's own validator.
+# Kept apart from CI: it depends on installing Claude Code from npm.
+
+on:
+  push:
+    branches: [main]
+    paths: ["plugin/**", ".claude-plugin/**", ".github/workflows/plugin-validate.yml"]
+  pull_request:
+    paths: ["plugin/**", ".claude-plugin/**", ".github/workflows/plugin-validate.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @anthropic-ai/claude-code
+      - run: claude --version
+      - name: Validate the plugin
+        run: claude plugin validate ./plugin
+      - name: Validate the marketplace
+        run: claude plugin validate .
+      - name: The packaged tool starts on its own
+        run: node plugin/bin/repokit doctor --json
