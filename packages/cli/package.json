@@ -11,16 +11,17 @@
     "dist"
   ],
   "dependencies": {
-    "@repokit/core": "workspace:*",
-    "@repokit/scan": "workspace:*",
-    "commander": "^15.0.0",
-    "@repokit/capture": "workspace:*",
-    "@repokit/studio": "workspace:*",
+    "@repokit/assets": "workspace:*",
     "@repokit/brief": "workspace:*",
-    "@repokit/readme": "workspace:*",
-    "@repokit/preview": "workspace:*",
-    "@repokit/verify": "workspace:*",
+    "@repokit/capture": "workspace:*",
+    "@repokit/core": "workspace:*",
     "@repokit/deploy": "workspace:*",
-    "@repokit/release": "workspace:*"
+    "@repokit/preview": "workspace:*",
+    "@repokit/readme": "workspace:*",
+    "@repokit/release": "workspace:*",
+    "@repokit/scan": "workspace:*",
+    "@repokit/studio": "workspace:*",
+    "@repokit/verify": "workspace:*",
+    "commander": "^15.0.0"
   }
 }

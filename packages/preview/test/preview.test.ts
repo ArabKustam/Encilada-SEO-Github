@@ -75,7 +75,7 @@ describe("preview server", () => {
     const state = await (await fetch(`${server.url}/api/state?preset=compact`)).json();
     expect(state.plan.preset).toBe("compact");
     expect(state.plan.slots.map((s: { id: string }) => s.id)).toEqual(["header", "stack", "features", "quickstart", "demo", "limitations", "license"]);
-    expect(state.presets).toHaveLength(3);
+    expect(state.presets.map((p: { name: string }) => p.name)).toEqual(["auto", "compact", "showcase", "technical"]);
     expect(state.hasReadme).toBe(true);
   });
 

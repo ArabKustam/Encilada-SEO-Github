@@ -1,7 +1,7 @@
 /** Sections a README preset can be assembled from. Shared by `brief` (criteria matrix) and `readme`. */
 export const README_SLOTS = [
-  "header", "hero", "stack", "problem", "solution", "features", "demo", "architecture",
-  "routes", "quickstart", "judges", "limitations", "team", "license",
+  "header", "hero", "stack", "problem", "solution", "features", "demo", "packages", "quickstart", "usage",
+  "commands", "configuration", "architecture", "routes", "judges", "limitations", "team", "license",
 ] as const;
 
 export type ReadmeSlotId = (typeof README_SLOTS)[number];

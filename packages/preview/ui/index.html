@@ -329,6 +329,7 @@ document.querySelector(".tabs").addEventListener("click", (event) => {
 $("#apply").addEventListener("click", () => {
   const fill = state.plan.problems.filter((p) => p.kind === "fill").length;
   $("#confirm-summary").textContent = "Пресет «" + ui.preset + "»: строк +" + state.diff.added + " −" + state.diff.removed + ". Прежняя версия сохранится в .repokit/readme.backup.md."
+    + (state.plan.mode === "improve" ? " Внимание: в репозитории уже есть содержательный README — он будет заменён целиком." : "")
     + (fill ? " Внимание: незаполненных мест — " + fill + "." : "");
   $("#confirm-diff").replaceChildren(...diffNode(state.diff.text).childNodes);
   $("#confirm").showModal();

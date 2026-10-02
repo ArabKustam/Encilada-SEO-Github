@@ -174,7 +174,7 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
         throw new Pause("waiting", "README ждёт одобрения",
           `Посмотрите черновик (repokit preview serve --repo ${path ?? "."} --open) и одобрите запись README.md: строк +${preview.data.added} −${preview.data.removed}, незаполненных разделов ${empty}. Одобрить: ${again} --approve readme`);
       }
-      const applied = must(["readme", "apply", "--preset", flags.preset, ...hero]);
+      const applied = must(["readme", "apply", "--regenerate", "--preset", flags.preset, ...hero]);
       return `README.md ${applied.data.written ? "записан" : "без изменений"}: +${applied.data.added} −${applied.data.removed}; незаполненных разделов ${empty}`;
     },
 
@@ -257,7 +257,7 @@ export function registerRun(program: Command): void {
     .option("--scenario <file>", `сценарий демо (по умолчанию ${DEFAULT_SCENARIO} в репозитории)`)
     .option("--rules <file>", "файл с правилами хакатона")
     .option("--default-brief", "правил нет — взять типовой набор критериев")
-    .option("--preset <name>", "пресет README", "showcase")
+    .option("--preset <name>", "пресет README: auto — структура по типу проекта", "auto")
     .option("--device <name>", "устройство для 3D-версии демо: browser, laptop, phone, screen", "browser")
     .option("--exec", "при проверке выполнить команды Quick start из README")
     .option("--online", "при проверке обратиться к внешним ссылкам")

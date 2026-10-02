@@ -37,6 +37,9 @@
     },
     {
       "path": "../release"
+    },
+    {
+      "path": "../assets"
     }
   ]
 }

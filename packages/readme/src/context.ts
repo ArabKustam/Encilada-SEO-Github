@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { loadBrief, type Brief } from "@repokit/brief";
 import {
-  assertValid, listFiles, readArtifact, readManifest, README_SLOTS, REPOKIT_DIR, UsageError,
+  assertValid, listFiles, readArtifact, readManifest, readText, README_SLOTS, REPOKIT_DIR, UsageError,
   type MediaManifest, type ReadmeSlotId,
 } from "@repokit/core";
-import { analyze, checkClaims, type ClaimsDoc, type ScanResult } from "@repokit/scan";
+import { analyze, checkClaims, envVarUses, type ClaimsDoc, type EnvVarUse, type ScanResult } from "@repokit/scan";
+import { extractExamples, type ExamplesDoc } from "./examples.js";
+import { detectProfile, type Profile, type Style } from "./profile.js";
 
 /** `presets/readme/` at the repository root. */
 const PRESETS_DIR = fileURLToPath(new URL("../../../presets/readme/", import.meta.url));
@@ -43,9 +45,13 @@ export interface Options {
   heroDark?: string;
   /** A banner image shown above the title. */
   banner?: string;
+  /** Presentation style; chosen from the kind of project when not set. */
+  style?: Style;
 }
 
-export const DEFAULT_OPTIONS: Options = { preset: "showcase", language: "ru" };
+/** `auto` builds the structure from the kind of project; a preset name forces one of the fixed templates. */
+export const AUTO_PRESET = "auto";
+export const DEFAULT_OPTIONS: Options = { preset: AUTO_PRESET, language: "ru" };
 
 export interface I18n {
   headings: Record<string, string>;
@@ -72,6 +78,18 @@ export interface Context {
   /** Claims whose evidence still checks out; everything else is reported, not published. */
   claims: ClaimsDoc["claims"];
   staleClaims: string[];
+  /** What kind of project this is and why. */
+  profile: Profile;
+  /** Usage examples and command-line definitions found in the repository. */
+  examples: ExamplesDoc;
+  /** Environment variables the code reads. */
+  envVars: EnvVarUse[];
+  /** Packages of a monorepo. */
+  packages: { name: string; path: string; description: string }[];
+  /** Media files that documents other than the README refer to. */
+  referencedElsewhere: Set<string>;
+  /** Path of the project inside its git repository, empty at the root. */
+  gitPrefix: string;
   brief: Brief | null;
   human: Human;
   options: Options;
@@ -183,9 +201,45 @@ export function loadContext(repo: string, options: Options): Context {
   const licenseText = licenseFile ? readFileSync(join(repo, licenseFile), "utf8").slice(0, 4000) : "";
   const license = licenseFile ? { file: licenseFile, name: LICENSE_SIGNATURES.find(([pattern]) => pattern.test(licenseText))?.[1] ?? null } : null;
 
+  const packages = [...files]
+    .filter((f) => /^(packages|apps|libs|crates|services)\/[^/]+\/package\.json$/.test(f))
+    .map((manifest) => {
+      try {
+        const pkg = JSON.parse(readText(repo, manifest) ?? "{}");
+        return { name: String(pkg.name ?? manifest.split("/")[1]), path: manifest.replace(/\/package\.json$/, ""), description: String(pkg.description ?? "") };
+      } catch {
+        return null;
+      }
+    })
+    .filter((p): p is { name: string; path: string; description: string } => p !== null)
+    .sort((a, b) => a.path.localeCompare(b.path));
+
+  const readmeFile = scan.repoHealth.readme?.file;
+  const referencedElsewhere = new Set<string>();
+  for (const file of files) {
+    if (file === readmeFile || !/\.(md|markdown|html?)$/i.test(file)) continue;
+    const dir = file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : "";
+    for (const m of (readText(repo, file) ?? "").matchAll(/(?:src|srcset|href)="([^"\s]+)|\]\(\s*<?([^)\s>]+)/g)) {
+      const target = (m[1] ?? m[2]).split(/[?#]/)[0];
+      if (target && !/^([a-z][a-z0-9+.-]*:|#|\/)/i.test(target)) referencedElsewhere.add(join(dir, target).split("\\").join("/").replace(/^\.\//, ""));
+    }
+  }
+  let gitPrefix = "";
+  try {
+    gitPrefix = execFileSync("git", ["-C", repo, "rev-parse", "--show-prefix"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim().replace(/\/$/, "");
+  } catch {
+    gitPrefix = "";
+  }
+
   const allHeadings = new Set(LANGUAGES.flatMap((language) => Object.values(loadI18n(language).headings)).map((h) => h.toLowerCase()));
   return {
     repo, scan, claims, staleClaims,
+    profile: detectProfile(repo, scan, files),
+    examples: extractExamples(repo, scan, files),
+    envVars: envVarUses(repo),
+    packages,
+    referencedElsewhere,
+    gitPrefix,
     brief: loadBrief(repo),
     human: loadHuman(repo),
     options,

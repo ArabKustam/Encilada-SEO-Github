@@ -35,6 +35,9 @@
       "path": "packages/release"
     },
     {
+      "path": "packages/assets"
+    },
+    {
       "path": "packages/cli"
     }
   ]

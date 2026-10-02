@@ -2,8 +2,9 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileSha256, type HumanTodo, type MediaEntry, type ReadmeSlotId } from "@repokit/core";
 import type { Claim } from "@repokit/scan";
-import { buildGraph, mermaid } from "./architecture.js";
+import { buildGraph, groupGraph, mermaid } from "./architecture.js";
 import { HUMAN_FILE, type Context, type ReadmePreset, type TemplateSlot } from "./context.js";
+import { bestExample } from "./examples.js";
 import { badgeMarkdown, detectStack, technologyByName } from "./stack.js";
 
 export type SlotStatus = "filled" | "empty" | "omitted";
@@ -112,7 +113,15 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
           banner = `<p align="center">\n<img src="${ctx.options.banner}" alt="${escapeHtml(human.tagline ? `${title} — ${human.tagline}` : title)}">\n</p>`;
         }
       }
-      const body = [banner, `# ${title}`, tagline, badges().join(" ")].filter(Boolean).join("\n\n");
+      // What a newcomer most likely wants next, as links: only to things that exist.
+      const live = human.demoUrl ?? ctx.deployment?.url;
+      const docs = [...ctx.files].some((f) => /^docs?\/[^/]+\.md$/i.test(f)) ? (ctx.files.has("docs/README.md") ? "docs/README.md" : "docs/") : null;
+      const actions = [
+        live ? `[${phrases.actionDemo}](${live})` : "",
+        docs ? `[${phrases.actionDocs}](${docs})` : "",
+        inPreset.has("quickstart") && !skipped.has("quickstart") ? `[${phrases.actionStart}](#${slug(headings.quickstart)})` : "",
+      ].filter(Boolean);
+      const body = [banner, `# ${title}`, tagline, actions.length > 1 ? actions.join(" · ") : "", badges().join(" ")].filter(Boolean).join("\n\n");
       const markdown = slot.options.variant === "centered" ? `<div align="center">\n\n${body}\n\n</div>` : body;
       return human.tagline
         ? filled(markdown, `название: ${human.title ? HUMAN_PATH : "имя проекта"}; тэглайн: ${HUMAN_PATH}; бейджи: ${badgeNames.join(", ") || "нет"}`)
@@ -165,7 +174,7 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
     },
 
     architecture: (slot) => {
-      const graph = buildGraph(ctx.repo, scan, ctx.files);
+      const graph = groupGraph(buildGraph(ctx.repo, scan, ctx.files));
       if (graph.nodes.length < 2) return omitted("в проекте меньше двух связанных модулей — схема была бы пустой");
       const diagram = `${phrases.architectureIntro}\n\n\`\`\`mermaid\n${mermaid(graph, phrases)}\n\`\`\``;
       const body = slot.options.collapsible ? `<details>\n<summary>${phrases.details}</summary>\n\n${diagram}\n\n</details>` : diagram;
@@ -187,14 +196,63 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
       const block = (label: string, command?: string) => (command ? `${label}:\n\n\`\`\`bash\n${command}\n\`\`\`` : "");
       const runtime = packageManager === "pip" ? "Python 3" : packageManager ? "Node.js" : "";
       const staticNote = !commands.run ? "Откройте `index.html` в браузере." : "";
+      // The shortest path from nothing to a running project starts with getting the code.
+      const clone = ctx.github ? `git clone https://github.com/${ctx.github.owner}/${ctx.github.repo}.git\ncd ${[ctx.github.repo, ctx.gitPrefix].filter(Boolean).join("/")}` : undefined;
+      const needsEnv = ctx.envVars.some((v) => !v.optional);
+      const envNote = !needsEnv ? "" : inPreset.has("configuration") && !skipped.has("configuration")
+        ? phrase("envFirst", { name: headings.configuration })
+        : `${phrases.requirements}: ${ctx.envVars.filter((v) => !v.optional).map((v) => `\`${v.name}\``).join(", ")}.`;
       const parts = [
         runtime ? `${phrases.requirements}: ${runtime}.` : "",
+        block(phrases.clone, clone),
         block(phrases.install, commands.install),
+        envNote,
         block(phrases.run, commands.run),
         staticNote,
         block(phrases.test, commands.test),
       ].filter(Boolean);
       return filled(`${heading("quickstart")}\n\n${parts.join("\n\n")}`, "scan: команды установки, запуска и тестов");
+    },
+
+    usage: () => {
+      const example = bestExample(ctx.examples);
+      if (!example) return empty("usage", "в репозитории не найдено примеров использования: покажите минимальный рабочий пример — и убедитесь, что он запускается");
+      const [from, to] = example.lines;
+      const origin = `[\`${example.file}:${from}–${to}\`](${encodeURI(example.file)}#L${from}-L${to})`;
+      const note = `<sub>${phrases.source}: ${origin}${example.kind === "test" ? ` (${phrases.fromTest})` : ""}</sub>`;
+      return filled(`${heading("usage")}\n\n\`\`\`${example.language}\n${example.code}\n\`\`\`\n\n${note}`, `пример из ${example.file}:${from}–${to}, скопирован дословно`);
+    },
+
+    commands: (slot) => {
+      const { commands, options } = ctx.examples;
+      const rows = commands.length > 0 ? commands : options;
+      if (rows.length === 0) return omitted("команд и опций командной строки не найдено");
+      const label = commands.length > 0 ? phrases.command : phrases.option;
+      // Two entries read better as a list; a table earns its place from three.
+      const body = rows.length < 3
+        ? rows.map((r) => `- \`${r.command}\`${r.description ? ` — ${r.description}` : ""}`).join("\n")
+        : [`| ${label} | ${phrases.description} |`, "|---|---|", ...rows.map((r) => `| \`${escapeCell(r.command)}\` | ${escapeCell(r.description) || "—"} |`)].join("\n");
+      const wrapped = slot.options.collapsible ? `<details>\n<summary>${phrases.details}</summary>\n\n${body}\n\n</details>` : body;
+      return filled(`${heading("commands")}\n\n${wrapped}`, `определения командной строки в ${[...new Set(rows.map((r) => r.file))].join(", ")}`);
+    },
+
+    configuration: (slot) => {
+      const vars = ctx.envVars;
+      if (vars.length === 0) return omitted("код не читает переменных окружения");
+      const where = (v: (typeof vars)[number]) => `[\`${v.file}:${v.line}\`](${encodeURI(v.file)}#L${v.line})`;
+      const list = vars.length < 3
+        ? vars.map((v) => `- \`${v.name}\`${v.optional ? ` (${phrases.optional})` : ""} — ${where(v)}`).join("\n")
+        : [`| ${phrases.variable} | ${phrases.required} | ${phrases.readAt} |`, "|---|---|---|", ...vars.map((v) => `| \`${v.name}\` | ${v.optional ? phrases.no : phrases.yes} | ${where(v)} |`)].join("\n");
+      const example = [...ctx.files].find((f) => /^\.env\.(example|sample|template)$/.test(f));
+      const intro = [phrases.envIntro, example ? phrase("envExample", { file: example }) : ""].filter(Boolean).join(" ");
+      const body = slot.options.collapsible ? `<details>\n<summary>${phrases.details}</summary>\n\n${list}\n\n</details>` : list;
+      return filled(`${heading("configuration")}\n\n${intro}\n\n${body}`, `переменные окружения, которые читает код: ${vars.length}`);
+    },
+
+    packages: () => {
+      if (ctx.packages.length < 2) return omitted("в репозитории один пакет");
+      const rows = ctx.packages.map((p) => `| [\`${escapeCell(p.name)}\`](${encodeURI(p.path)}) | ${escapeCell(p.description) || "—"} |`);
+      return filled(`${heading("packages")}\n\n${[`| ${phrases.package} | ${phrases.description} |`, "|---|---|", ...rows].join("\n")}`, `манифесты пакетов: ${ctx.packages.length}`);
     },
 
     judges: () => {

@@ -153,7 +153,8 @@ export function analyze(repo: string): ScanResult {
           if (kind) models.push({ name: m[1], file: file.path, line: lineNo, kind });
         }
       } else if (JS_EXT.has(ext)) {
-        if ((m = line.match(JS_ROUTE))) {
+        // A comment or an HTTP client call (`axios.get("/x")`) looks the same and is not a route.
+        if (!/^\s*(\/\/|\*|\/\*)/.test(line) && (m = line.match(JS_ROUTE)) && !/^(axios|https?|client|api|request|agent|fetch)$/i.test(m[1])) {
           routes.push({ method: m[2].toUpperCase(), path: m[3], file: file.path, line: lineNo, framework: uses("fastify") ? "fastify" : "express", confidence: jsRouteConfidence });
         }
       } else if (ext === ".prisma") {

@@ -9,7 +9,7 @@ import { stringify } from "yaml";
 import {
   diffStats, fileSha256, formatDiff, insideRepo, lineDiff, listFiles, readManifest, validate, writeArtifact,
 } from "@repokit/core";
-import { draftReadme, HUMAN_FILE, listReadmePresets, loadHuman, loadOptions, renderTodo, type Human, type Options } from "@repokit/readme";
+import { AUTO_PRESET, draftReadme, HUMAN_FILE, listReadmePresets, loadHuman, loadOptions, renderTodo, writeReadme, type Human, type Options } from "@repokit/readme";
 import { renderPage, REPO_PREFIX, type Theme } from "./render.js";
 
 const require = createRequire(import.meta.url);
@@ -90,7 +90,10 @@ export function previewState(repo: string, preset: string | null) {
 
   return {
     options,
-    presets: listReadmePresets().map((p) => ({ name: p.name, title: p.title, description: p.description })),
+    presets: [
+      { name: AUTO_PRESET, title: "По типу проекта", description: "структура выбирается по тому, что это за проект" },
+      ...listReadmePresets().map((p) => ({ name: p.name, title: p.title, description: p.description })),
+    ],
     hasReadme: draft.current !== null,
     plan: draft.plan,
     staleClaims: draft.context.staleClaims,
@@ -137,8 +140,7 @@ export async function startPreviewServer(repo: string, port: number): Promise<Pr
       if (path === "/api/apply") {
         const options = optionsFor(repo, typeof body.preset === "string" ? body.preset : null);
         const draft = draftReadme(repo, options);
-        if (draft.current !== null && draft.current !== draft.markdown) writeArtifact(repo, "readme.backup.md", draft.current, "readme-backup");
-        writeFileSync(join(repo, "README.md"), draft.markdown);
+        writeReadme(repo, draft);
         writeArtifact(repo, "readme.options.json", JSON.stringify(options, null, 2) + "\n", "readme-options");
         writeArtifact(repo, "human-todo.md", renderTodo(draft.plan.humanTodo), "human-todo");
         return sendJson(res, 200, { ok: true });

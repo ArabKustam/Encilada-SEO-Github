@@ -7,7 +7,11 @@ headings:
   demo: Demo
   architecture: Architecture
   routes: API and pages
+  packages: Packages
   quickstart: Quick start
+  usage: Usage
+  commands: Commands
+  configuration: Configuration
   judges: For judges
   limitations: Limitations & Roadmap
   team: Team
@@ -20,6 +24,26 @@ phrases:
   liveDemo: "Open the live version"
   watchVideo: "Watch the video"
   coldStart: "free hosting: the first load may take up to a minute"
+  filesCount: "{n} files"
+  actionDemo: "Demo"
+  actionDocs: "Documentation"
+  actionStart: "Quick start"
+  clone: "Clone"
+  source: "Source"
+  fromTest: "from a test"
+  command: Command
+  option: Option
+  description: Description
+  variable: Variable
+  required: Required
+  optional: optional
+  yes: "yes"
+  no: "no"
+  readAt: Read in
+  package: Package
+  envIntro: "Values are set in the environment; none are stored in the repository."
+  envExample: "Copy `{file}` to `.env` and fill in the values."
+  envFirst: "Set the environment variables before running — see “{name}”."
   requirements: "You will need"
   install: "Install"
   run: "Run"

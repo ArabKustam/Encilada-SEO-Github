@@ -185,6 +185,15 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@20.19.43)(vite@8.3.1(@types/node@20.19.43)(esbuild@0.28.1)(terser@5.51.2)(yaml@2.9.1))
 
+  packages/assets:
+    dependencies:
+      '@repokit/core':
+        specifier: workspace:*
+        version: link:../core
+      commander:
+        specifier: ^15.0.0
+        version: 15.0.0
+
   packages/brief:
     dependencies:
       '@repokit/core':
@@ -214,6 +223,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@repokit/assets':
+        specifier: workspace:*
+        version: link:../assets
       '@repokit/brief':
         specifier: workspace:*
         version: link:../brief

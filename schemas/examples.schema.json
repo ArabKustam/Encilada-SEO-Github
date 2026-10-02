@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArabKustam/Encilada-SEO-Github/schemas/examples.schema.json",
+  "title": "Usage examples",
+  "description": "Примеры использования, найденные в репозитории. Код скопирован дословно; у каждого примера есть файл, строки и хеш этих строк.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "examples",
+    "commands",
+    "options"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "language",
+          "title",
+          "code",
+          "file",
+          "lines",
+          "snippetSha256",
+          "score"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "example-file",
+              "documentation",
+              "test"
+            ]
+          },
+          "language": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "snippetSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "command",
+          "description",
+          "file",
+          "line"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "command",
+          "description",
+          "file",
+          "line"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}

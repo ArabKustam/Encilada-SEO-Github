@@ -5,35 +5,85 @@
   "description": "Разбор правил хакатона: критерии жюри, требования к подаче и матрица «критерий → чем подтвердить в репозитории».",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "source", "isDefaultProfile", "criteria", "submission", "deadlines", "restrictions", "matrix"],
+  "required": [
+    "schemaVersion",
+    "source",
+    "isDefaultProfile",
+    "criteria",
+    "submission",
+    "deadlines",
+    "restrictions",
+    "matrix"
+  ],
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-    "quote": { "type": "string", "minLength": 3, "description": "Дословный фрагмент из текста правил" }
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Дословный фрагмент из текста правил"
+    }
   },
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": {
+      "const": 1
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "ref", "sha256"],
+      "required": [
+        "kind",
+        "ref",
+        "sha256"
+      ],
       "properties": {
-        "kind": { "enum": ["file", "url", "text", "default-profile"] },
-        "ref": { "type": "string" },
-        "sha256": { "type": "string" }
+        "kind": {
+          "enum": [
+            "file",
+            "url",
+            "text",
+            "default-profile"
+          ]
+        },
+        "ref": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
       }
     },
-    "isDefaultProfile": { "type": "boolean", "description": "true — правил не было, критерии взяты из профиля по умолчанию" },
+    "isDefaultProfile": {
+      "type": "boolean",
+      "description": "true — правил не было, критерии взяты из профиля по умолчанию"
+    },
     "criteria": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title"],
+        "required": [
+          "id",
+          "title"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "title": { "type": "string", "minLength": 1 },
-          "weight": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
-          "quote": { "$ref": "#/$defs/quote" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "quote": {
+            "$ref": "#/$defs/quote"
+          }
         }
       }
     },
@@ -42,13 +92,28 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title", "required"],
+        "required": [
+          "id",
+          "title",
+          "required"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "title": { "type": "string", "minLength": 1 },
-          "required": { "type": "boolean" },
-          "constraint": { "type": "string" },
-          "quote": { "$ref": "#/$defs/quote" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "constraint": {
+            "type": "string"
+          },
+          "quote": {
+            "$ref": "#/$defs/quote"
+          }
         }
       }
     },
@@ -57,12 +122,25 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title", "date"],
+        "required": [
+          "id",
+          "title",
+          "date"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "title": { "type": "string" },
-          "date": { "type": "string", "description": "Дата и время как в правилах; ISO 8601, если удалось определить однозначно" },
-          "quote": { "$ref": "#/$defs/quote" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "title": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "description": "Дата и время как в правилах; ISO 8601, если удалось определить однозначно"
+          },
+          "quote": {
+            "$ref": "#/$defs/quote"
+          }
         }
       }
     },
@@ -71,11 +149,21 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title"],
+        "required": [
+          "id",
+          "title"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
-          "title": { "type": "string", "minLength": 1 },
-          "quote": { "$ref": "#/$defs/quote" }
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quote": {
+            "$ref": "#/$defs/quote"
+          }
         }
       }
     },
@@ -84,16 +172,51 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["criterionId", "evidenceKinds", "readmeSlot"],
+        "required": [
+          "criterionId",
+          "evidenceKinds",
+          "readmeSlot"
+        ],
         "properties": {
-          "criterionId": { "$ref": "#/$defs/id" },
+          "criterionId": {
+            "$ref": "#/$defs/id"
+          },
           "evidenceKinds": {
             "type": "array",
             "minItems": 1,
-            "items": { "enum": ["feature", "demo", "architecture", "tests", "deploy", "docs", "team"] }
+            "items": {
+              "enum": [
+                "feature",
+                "demo",
+                "architecture",
+                "tests",
+                "deploy",
+                "docs",
+                "team"
+              ]
+            }
           },
           "readmeSlot": {
-            "enum": ["header", "hero", "stack", "problem", "solution", "features", "demo", "architecture", "routes", "quickstart", "judges", "limitations", "team", "license"]
+            "enum": [
+              "header",
+              "hero",
+              "stack",
+              "problem",
+              "solution",
+              "features",
+              "demo",
+              "architecture",
+              "routes",
+              "quickstart",
+              "judges",
+              "limitations",
+              "team",
+              "license",
+              "usage",
+              "commands",
+              "configuration",
+              "packages"
+            ]
           }
         }
       }

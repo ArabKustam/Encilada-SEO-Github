@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
 import { ExitCode, say, VERSION } from "@repokit/core";
+import { registerAssets } from "@repokit/assets";
 import { registerBrief } from "@repokit/brief";
 import { registerCapture } from "@repokit/capture";
 import { registerDeploy } from "@repokit/deploy";
@@ -28,6 +29,7 @@ registerCapture(program);
 registerStudio(program);
 registerBrief(program);
 registerReadme(program);
+registerAssets(program);
 registerPreview(program);
 registerVerify(program);
 registerDeploy(program);

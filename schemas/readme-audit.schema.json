@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArabKustam/Encilada-SEO-Github/schemas/readme-audit.schema.json",
+  "title": "README audit",
+  "description": "Результат проверки README по категориям. Аудит не ставит оценку: каждая строка — конкретная проверка, пройденная или нет.",
+  "type": "object",
+  "required": [
+    "file",
+    "projectType",
+    "passed",
+    "failed",
+    "errors",
+    "checks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "file": {
+      "type": "string"
+    },
+    "projectType": {
+      "enum": [
+        "web-app",
+        "cli",
+        "library",
+        "sdk",
+        "api",
+        "ai-agent",
+        "mobile-app",
+        "desktop-app",
+        "game",
+        "ml-research",
+        "dev-tool",
+        "template",
+        "monorepo",
+        "infrastructure",
+        "unknown"
+      ]
+    },
+    "passed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "errors": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "ok",
+          "severity",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "clarity",
+              "first-viewport",
+              "visuals",
+              "quick-start",
+              "examples",
+              "claims",
+              "formatting",
+              "assets"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warn"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fix": {
+            "enum": [
+              "auto",
+              "edit"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

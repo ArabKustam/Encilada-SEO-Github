@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ArabKustam/Encilada-SEO-Github/schemas/readme-layout.schema.json",
+  "title": "README layout",
+  "description": "План README, составленный до генерации: тип проекта, читатель, разделы и их приоритет. Файл .repokit/readme.layout.json можно править.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "projectType",
+    "confidence",
+    "signals",
+    "style",
+    "audience",
+    "primaryAction",
+    "hero",
+    "demo",
+    "screenshots",
+    "architectureDiagram",
+    "quickStart",
+    "usageExamples",
+    "comparisonTable",
+    "sections",
+    "mode"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "projectType": {
+      "enum": [
+        "web-app",
+        "cli",
+        "library",
+        "sdk",
+        "api",
+        "ai-agent",
+        "mobile-app",
+        "desktop-app",
+        "game",
+        "ml-research",
+        "dev-tool",
+        "template",
+        "monorepo",
+        "infrastructure",
+        "unknown"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Факты, на которых основано определение типа."
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "web-app",
+          "cli",
+          "library",
+          "sdk",
+          "api",
+          "ai-agent",
+          "mobile-app",
+          "desktop-app",
+          "game",
+          "ml-research",
+          "dev-tool",
+          "template",
+          "monorepo",
+          "infrastructure",
+          "unknown"
+        ]
+      }
+    },
+    "style": {
+      "enum": [
+        "minimal",
+        "developer",
+        "product",
+        "showcase",
+        "research",
+        "docs"
+      ]
+    },
+    "audience": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "primaryAction": {
+      "enum": [
+        "open-demo",
+        "install",
+        "quick-start",
+        "read-docs"
+      ]
+    },
+    "hero": {
+      "type": "boolean"
+    },
+    "demo": {
+      "enum": [
+        "gif",
+        "screenshots",
+        "terminal",
+        "none"
+      ]
+    },
+    "screenshots": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "architectureDiagram": {
+      "type": "boolean"
+    },
+    "quickStart": {
+      "type": "boolean"
+    },
+    "usageExamples": {
+      "type": "boolean"
+    },
+    "comparisonTable": {
+      "type": "boolean"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "priority",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "architecture",
+              "commands",
+              "configuration",
+              "demo",
+              "features",
+              "header",
+              "hero",
+              "judges",
+              "license",
+              "limitations",
+              "packages",
+              "problem",
+              "quickstart",
+              "routes",
+              "solution",
+              "stack",
+              "team",
+              "usage"
+            ]
+          },
+          "priority": {
+            "enum": [
+              "must",
+              "should",
+              "optional",
+              "omit"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "collapsible": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "existing": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "lines",
+        "sections"
+      ],
+      "properties": {
+        "lines": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "heading",
+              "lines",
+              "words",
+              "slot"
+            ],
+            "properties": {
+              "heading": {
+                "type": "string"
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "words": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "slot": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "mode": {
+      "enum": [
+        "generate",
+        "improve"
+      ]
+    }
+  }
+}

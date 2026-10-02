@@ -78,7 +78,11 @@
           "judges",
           "limitations",
           "team",
-          "license"
+          "license",
+          "usage",
+          "commands",
+          "configuration",
+          "packages"
         ]
       },
       "description": "Разделы, которые автор решил не включать"

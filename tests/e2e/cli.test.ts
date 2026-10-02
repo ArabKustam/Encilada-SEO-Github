@@ -172,3 +172,52 @@ describe("repokit run", () => {
     expect(todo.map((t) => t.id)).toEqual(expect.arrayContaining(["brief.default", "run.skipped.demo"]));
   });
 });
+
+describe("repokit readme: plan first, then write", () => {
+  const project = mkdtempSync(join(tmpdir(), "repokit-layout-"));
+  cpSync(join(ROOT, "examples/cli-tool"), project, { recursive: true, filter: (source) => !source.includes(".repokit") });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const json = (...args: string[]) => {
+    const { code, stdout } = repokit([...args, "--repo", project, "--json"]);
+    return { code, envelope: JSON.parse(stdout) };
+  };
+
+  it("layout, examples and audit produce schema-valid documents", () => {
+    const layout = json("readme", "layout");
+    expect(layout.code).toBe(0);
+    expect(validate("readme-layout", layout.envelope.data)).toEqual({ valid: true, errors: [] });
+    expect(layout.envelope.data.projectType).toBe("cli");
+    expect(validate("examples", json("examples", "extract").envelope.data)).toEqual({ valid: true, errors: [] });
+    const audit = json("readme", "audit");
+    expect(validate("readme-audit", audit.envelope.data)).toEqual({ valid: true, errors: [] });
+    expect(json("readme", "hero-check").envelope.data.checks.length).toBeLessThan(audit.envelope.data.checks.length);
+  });
+
+  it("builds from an edited layout: a section marked omit is left out", () => {
+    const file = join(project, ".repokit/readme.layout.json");
+    const layout = JSON.parse(readFileSync(file, "utf8"));
+    expect(json("readme", "plan").envelope.data.slots.map((s: { id: string }) => s.id)).toContain("commands");
+    layout.sections.find((s: { id: string }) => s.id === "commands").priority = "omit";
+    writeFileSync(file, JSON.stringify(layout));
+    expect(json("readme", "plan").envelope.data.slots.map((s: { id: string }) => s.id)).not.toContain("commands");
+  });
+
+  it("rejects an unknown style", () => {
+    expect(repokit(["readme", "plan", "--repo", project, "--style", "glossy"]).code).toBe(2);
+  });
+
+  it("does not replace a README somebody wrote unless told to", () => {
+    const sections = ["Install", "Usage", "Options", "Contributing"].map((h) => `## ${h}\n\n${Array.from({ length: 16 }, (_, i) => `Line ${i}.`).join("\n")}\n`);
+    const own = `# wordfreq\n\nCounts words in a text file.\n\n${sections.join("\n")}`;
+    writeFileSync(join(project, "README.md"), own);
+    const refused = json("readme", "apply");
+    expect(refused.code).toBe(3);
+    expect(refused.envelope.humanTodo.map((t: { id: string }) => t.id)).toContain("readme.existing");
+    expect(readFileSync(join(project, "README.md"), "utf8")).toBe(own);
+
+    expect(json("readme", "apply", "--regenerate").code).toBe(0);
+    expect(readFileSync(join(project, ".repokit/readme.backup.md"), "utf8")).toBe(own);
+    // What repokit wrote itself it may rewrite without asking again.
+    expect(json("readme", "apply").code).toBe(0);
+  });
+});

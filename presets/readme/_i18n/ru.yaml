@@ -7,7 +7,11 @@ headings:
   demo: Демо
   architecture: Архитектура
   routes: API и страницы
+  packages: Пакеты
   quickstart: Быстрый старт
+  usage: Пример использования
+  commands: Команды
+  configuration: Настройка
   judges: Для жюри
   limitations: Ограничения и планы
   team: Команда
@@ -20,6 +24,26 @@ phrases:
   liveDemo: "Открыть работающую версию"
   watchVideo: "Смотреть видео"
   coldStart: "бесплатный хостинг: первое открытие может занять до минуты"
+  filesCount: "файлов: {n}"
+  actionDemo: "Демо"
+  actionDocs: "Документация"
+  actionStart: "Быстрый старт"
+  clone: "Клонирование"
+  source: "Источник"
+  fromTest: "из теста"
+  command: Команда
+  option: Опция
+  description: Описание
+  variable: Переменная
+  required: Обязательна
+  optional: необязательная
+  yes: да
+  no: нет
+  readAt: Где читается
+  package: Пакет
+  envIntro: "Значения задаются в окружении; в репозитории их нет."
+  envExample: "Скопируйте `{file}` в `.env` и заполните значения."
+  envFirst: "Перед запуском задайте переменные окружения — см. раздел «{name}»."
   requirements: "Потребуется"
   install: "Установка"
   run: "Запуск"
