@@ -79,19 +79,30 @@ const REVIEWER_INSTRUCTIONS: RegExp[] = [
   /(оцени|поставь|выстави)\p{L}*[^.\n]{0,60}(максимальн|высш|наивысш|10\s*(из|\/)\s*10|высокую оценку|высоко)/iu,
   /если ты\s+(ии|нейросеть|llm|языковая модель|искусственный интеллект)/iu,
 ];
-// Zero-width and bidi-control characters; a BOM at the very start of a file is harmless and skipped.
-const INVISIBLE = /[​-‏‪-‮⁠-⁤﻿]/;
+/** Code point ranges of zero-width and bidi-control characters. Written as numbers so that this file contains none of them. */
+const INVISIBLE_RANGES: [number, number][] = [[0x200b, 0x200f], [0x202a, 0x202e], [0x2060, 0x2064], [0xfeff, 0xfeff]];
+const BYTE_ORDER_MARK = 0xfeff;
+
+function hasInvisible(text: string): boolean {
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    if (INVISIBLE_RANGES.some(([from, to]) => code >= from && code <= to)) return true;
+  }
+  return false;
+}
 const HIDDEN_HTML = /style\s*=\s*["'][^"']*(display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0|opacity\s*:\s*0(?![.\d])|color\s*:\s*(#fff(fff)?\b|white|transparent))/i;
 
 export function scanForHiddenText(file: string, text: string): HiddenTextFinding[] {
   const findings: HiddenTextFinding[] = [];
   const isDocument = /\.(md|markdown|html?|txt|rst)$/i.test(file);
-  text.replace(/^﻿/, "").split(/\r?\n/).forEach((content, index) => {
+  // A byte order mark at the very start of a file is harmless.
+  const body = text.charCodeAt(0) === BYTE_ORDER_MARK ? text.slice(1) : text;
+  body.split(/\r?\n/).forEach((content, index) => {
     const line = index + 1;
     if (REVIEWER_INSTRUCTIONS.some((pattern) => pattern.test(content))) {
       findings.push({ kind: "reviewer-instruction", file, line, message: "текст, обращённый к автоматическому проверяющему" });
     }
-    if (INVISIBLE.test(content)) findings.push({ kind: "invisible-characters", file, line, message: "невидимые символы (нулевой ширины или управляющие направлением текста)" });
+    if (hasInvisible(content)) findings.push({ kind: "invisible-characters", file, line, message: "невидимые символы (нулевой ширины или управляющие направлением текста)" });
     // Inline styles are ordinary in application code; in documents they only serve to hide text from readers.
     if (isDocument && HIDDEN_HTML.test(content)) findings.push({ kind: "hidden-html", file, line, message: "HTML со стилем, скрывающим текст от читателя" });
   });

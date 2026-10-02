@@ -14,7 +14,7 @@ const DEFAULT_SCENARIO = "demo.scenario.yaml";
 const HERO = "docs/media/hero";
 const HERO_3D = "docs/media/hero-3d";
 
-export const STEPS = ["scan", "brief", "claims", "demo", "readme", "verify"] as const;
+export const STEPS = ["scan", "brief", "claims", "deploy", "demo", "readme", "verify"] as const;
 type StepId = (typeof STEPS)[number];
 type StepStatus = "done" | "skipped" | "waiting" | "failed" | "pending";
 
@@ -131,6 +131,16 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
       }
       const undecided = claims.filter((c) => c.status === "unverified").length;
       return `подтверждено ${proven}, заглушек ${claims.filter((c) => c.status === "mock").length}, без решения ${undecided}`;
+    },
+
+    deploy: () => {
+      // Publishing is never done here: the step only says where the project could go and what that takes.
+      const planned = call(["deploy", "plan", "--dry-run"]);
+      if (planned.exitCode !== ExitCode.Ok) return "подходящая площадка не определена — см. repokit deploy providers";
+      const deployed = readArtifact(repo, "deploy.json");
+      if (deployed && JSON.parse(deployed).healthy) return `уже работает: ${JSON.parse(deployed).url}`;
+      humanTodo.push({ id: "run.deploy", text: `Деплой не выполнялся. Рекомендуется ${planned.data.title}: repokit deploy apply, затем repokit deploy run --confirm и repokit deploy check --url <адрес>.` });
+      return `не выполнялся; рекомендуется ${planned.data.title}`;
     },
 
     demo: () => {

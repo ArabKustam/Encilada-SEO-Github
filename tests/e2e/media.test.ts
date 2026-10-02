@@ -150,7 +150,7 @@ describe.skipIf(!enabled)("repokit run, start to finish", () => {
 
     const { code, envelope, stderr } = run("--approve", "demo", "--approve", "readme");
     expect(code, stderr).toBe(0);
-    expect(envelope.data.steps.map((s: { status: string }) => s.status)).toEqual(["done", "done", "done", "done", "done", "done"]);
+    expect(envelope.data.steps.map((s: { status: string }) => s.status)).toEqual(["done", "done", "done", "done", "done", "done", "done"]);
     expect(statSync(join(project, "docs/media/hero.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
     expect(statSync(join(project, "docs/media/hero-3d.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
 

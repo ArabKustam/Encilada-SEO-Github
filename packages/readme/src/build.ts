@@ -134,11 +134,13 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
     },
 
     demo: () => {
+      const live = human.demoUrl ?? ctx.deployment?.url;
+      const sleepy = ctx.deployment?.sleeps && live === ctx.deployment.url ? ` — ${phrases.coldStart}` : "";
       const links = [
-        human.demoUrl ? `- [${phrases.liveDemo}](${human.demoUrl})` : "",
+        live ? `- [${phrases.liveDemo}](${live})${sleepy}` : "",
         human.videoUrl ? `- [${phrases.watchVideo}](${human.videoUrl})` : "",
       ].filter(Boolean);
-      return links.length > 0 ? filled(`${heading("demo")}\n\n${links.join("\n")}`, HUMAN_PATH) : omitted(`нет ссылок на демо: поля demoUrl и videoUrl в ${HUMAN_PATH}`);
+      return links.length > 0 ? filled(`${heading("demo")}\n\n${links.join("\n")}`, human.demoUrl ? HUMAN_PATH : "deploy.json: адрес, проверенный deploy check") : omitted(`нет ссылок на демо: поля demoUrl и videoUrl в ${HUMAN_PATH}`);
     },
 
     architecture: (slot) => {

@@ -91,6 +91,17 @@ describe("draftReadme", () => {
     expect(markdown).toContain("Правил хакатона не было");
   });
 
+  it("links to a deployment only once it has been checked and found alive", () => {
+    const record = (healthy: boolean) => JSON.stringify({ schemaVersion: 1, provider: "render", url: "https://taskboard.onrender.com/", healthy, sleeps: true });
+    artifact("deploy.json", record(false));
+    expect(draftReadme(repo, options()).markdown).not.toContain("onrender.com");
+
+    artifact("deploy.json", record(true));
+    const { markdown } = draftReadme(repo, options());
+    expect(markdown).toContain("- [Открыть работающую версию](https://taskboard.onrender.com/) — бесплатный хостинг: первое открытие может занять до минуты");
+    rmSync(join(repo, ".repokit/deploy.json"));
+  });
+
   it("can be written in English", () => {
     const { markdown } = draftReadme(repo, options({ language: "en" }));
     expect(markdown).toContain("## Features");

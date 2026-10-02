@@ -51,7 +51,7 @@ describe("repokit CLI contract", () => {
   it("exits 2 on usage errors and on services that are not built yet", () => {
     expect(repokit(["scan", "audit", "--no-such-flag"]).code).toBe(2);
     expect(repokit(["scan", "audit", "--repo", join(repo, "missing")]).code).toBe(2);
-    expect(repokit(["deploy", "plan"]).code).toBe(2);
+    expect(repokit(["polish", "plan"]).code).toBe(2);
   });
 
   it("exits 1 when a claim marked implemented cannot be proven", () => {
@@ -71,6 +71,27 @@ describe("repokit CLI contract", () => {
     const { stdout, stderr } = repokit(["scan", "audit", "--repo", leaky, "--json"], { DEMO_PASSWORD: SECRET });
     expect(stdout + stderr).not.toContain(SECRET);
     expect(stdout).toContain("[REDACTED]");
+  });
+});
+
+describe("repokit deploy", () => {
+  it("never publishes on a plain invocation: it stops and asks", () => {
+    const site = mkdtempSync(join(tmpdir(), "repokit-deploy-cli-"));
+    cpSync(join(ROOT, "examples/static-site"), site, { recursive: true });
+    try {
+      const dry = repokit(["deploy", "apply", "--repo", site, "--dry-run", "--json"]);
+      expect(JSON.parse(dry.stdout).data.written).toEqual([".github/workflows/pages.yml"]);
+      expect(existsSync(join(site, ".github"))).toBe(false);
+
+      expect(repokit(["deploy", "apply", "--repo", site]).code).toBe(0);
+      expect(readFileSync(join(site, ".github/workflows/pages.yml"), "utf8")).toContain("actions/deploy-pages@v4");
+
+      const run = repokit(["deploy", "run", "--repo", site, "--json"]);
+      expect(run.code).toBe(3);
+      expect(JSON.parse(run.stdout).error.message).toContain("--confirm");
+    } finally {
+      rmSync(site, { recursive: true, force: true });
+    }
   });
 });
 

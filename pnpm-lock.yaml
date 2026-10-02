@@ -223,6 +223,9 @@ importers:
       '@repokit/core':
         specifier: workspace:*
         version: link:../core
+      '@repokit/deploy':
+        specifier: workspace:*
+        version: link:../deploy
       '@repokit/preview':
         specifier: workspace:*
         version: link:../preview
@@ -247,6 +250,18 @@ importers:
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
+      commander:
+        specifier: ^15.0.0
+        version: 15.0.0
+
+  packages/deploy:
+    dependencies:
+      '@repokit/core':
+        specifier: workspace:*
+        version: link:../core
+      '@repokit/scan':
+        specifier: workspace:*
+        version: link:../scan
       commander:
         specifier: ^15.0.0
         version: 15.0.0

@@ -76,6 +76,8 @@ export interface Context {
   license: { file: string; name: string | null } | null;
   files: Set<string>;
   workflows: string[];
+  /** A deployment that answered the last time `deploy check` ran. */
+  deployment: { url: string; sleeps: boolean } | null;
   i18n: I18n;
   allHeadings: Set<string>;
 }
@@ -143,6 +145,13 @@ export function loadOptions(repo: string): Options {
   return text === null ? { ...DEFAULT_OPTIONS } : { ...DEFAULT_OPTIONS, ...JSON.parse(text) };
 }
 
+function loadDeployment(repo: string): Context["deployment"] {
+  const text = readArtifact(repo, "deploy.json");
+  if (!text) return null;
+  const record = JSON.parse(text) as { url: string; healthy: boolean; sleeps: boolean };
+  return record.healthy ? { url: record.url, sleeps: record.sleeps } : null;
+}
+
 function githubRemote(repo: string): Context["github"] {
   try {
     const url = execFileSync("git", ["-C", repo, "remote", "get-url", "origin"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
@@ -180,6 +189,7 @@ export function loadContext(repo: string, options: Options): Context {
     github: githubRemote(repo),
     license,
     files,
+    deployment: loadDeployment(repo),
     workflows: [...files].filter((f) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(f)).sort(),
     i18n: loadI18n(options.language),
     allHeadings,

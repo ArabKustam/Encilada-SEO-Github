@@ -3,6 +3,7 @@ import { Command, CommanderError } from "commander";
 import { ExitCode, say, VERSION } from "@repokit/core";
 import { registerBrief } from "@repokit/brief";
 import { registerCapture } from "@repokit/capture";
+import { registerDeploy } from "@repokit/deploy";
 import { registerPreview } from "@repokit/preview";
 import { registerReadme } from "@repokit/readme";
 import { registerScan } from "@repokit/scan";
@@ -13,7 +14,7 @@ import { registerRun } from "./run.js";
 
 /** Services from DESIGN.md that are not built yet, with the milestone that delivers them. */
 const PLANNED: Record<string, string> = {
-  deploy: "M6", polish: "M7",
+  polish: "M7",
 };
 
 const program = new Command("repokit")
@@ -28,6 +29,7 @@ registerBrief(program);
 registerReadme(program);
 registerPreview(program);
 registerVerify(program);
+registerDeploy(program);
 registerRun(program);
 registerDoctor(program);
 

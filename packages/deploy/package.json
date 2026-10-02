@@ -1,0 +1,21 @@
+{
+  "name": "@repokit/deploy",
+  "version": "0.1.0",
+  "description": "repokit deploy: деплой на бесплатные площадки через CLI пользователя",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@repokit/core": "workspace:*",
+    "@repokit/scan": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}

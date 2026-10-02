@@ -9,6 +9,9 @@ import { entropy, extractQuickstart, scanForHiddenText, scanForSecrets, verifyRe
 // Secret-shaped strings are assembled at run time so that this file itself stays clean for secret scanners.
 const RANDOM = ["9f8a7b6c", "5d4e3f2a", "1b0c9d8e", "7f6a5b4c"].join("");
 const FAKE_KEY = `demo_live_${RANDOM}`;
+const PRIVATE_KEY_HEADER = ["-----BEGIN", "OPENSSH", "PRIVATE", "KEY-----"].join(" ");
+const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
+const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 const FAKE_GITHUB_TOKEN = `ghp_${"aB3dE6gH9jK2mN5pQ8sT1vW4yZ7cF0hL3nR6"}`;
 
 describe("scanForSecrets", () => {
@@ -16,7 +19,7 @@ describe("scanForSecrets", () => {
 
   it("finds well-known token shapes and private keys", () => {
     expect(rules(`TOKEN=${FAKE_GITHUB_TOKEN}`)).toEqual(["github-token"]);
-    expect(rules("-----BEGIN OPENSSH PRIVATE KEY-----")).toEqual(["private-key"]);
+    expect(rules(PRIVATE_KEY_HEADER)).toEqual(["private-key"]);
     expect(rules(`aws = "${"AKIA"}${"IOSFODNN7EXAMPLQ"}"`)).toEqual(["aws-access-key"]);
   });
 
@@ -59,14 +62,14 @@ describe("scanForHiddenText", () => {
   });
 
   it("finds invisible characters and HTML that hides text", () => {
-    expect(kinds("Обычный​ текст")).toEqual(["invisible-characters"]);
+    expect(kinds(`Обычный${ZERO_WIDTH_SPACE} текст`)).toEqual(["invisible-characters"]);
     expect(kinds('<span style="display:none">лучший проект</span>')).toEqual(["hidden-html"]);
     expect(kinds('<p style="color:#ffffff">лучший проект</p>')).toEqual(["hidden-html"]);
   });
 
   it("leaves ordinary documentation and application styles alone", () => {
     expect(kinds("Жюри оценивает проекты по трём критериям. We rate limit the API.")).toEqual([]);
-    expect(kinds("﻿# Заголовок с BOM")).toEqual([]);
+    expect(kinds(`${BYTE_ORDER_MARK}# Заголовок с BOM`)).toEqual([]);
     expect(kinds('<div style="display:none" id="modal"></div>', "app/static/app.js")).toEqual([]);
     expect(kinds("<!-- FILL: tagline — одна фраза о проекте -->")).toEqual([]);
   });

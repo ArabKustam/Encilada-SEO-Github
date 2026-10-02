@@ -18,6 +18,7 @@ phrases:
   evidence: "code"
   liveDemo: "Open the live version"
   watchVideo: "Watch the video"
+  coldStart: "free hosting: the first load may take up to a minute"
   requirements: "You will need"
   install: "Install"
   run: "Run"

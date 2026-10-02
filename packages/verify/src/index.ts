@@ -132,7 +132,8 @@ export async function verifyRepository(repo: string, flags: Pick<VerifyFlags, "o
 
     // --- external links and the deployed URL
     const external = [...new Set([...readme.matchAll(/https?:\/\/[^\s)"'<>\]]+/g)].map((m) => m[0].replace(/[.,;:]+$/, "")))];
-    const demoUrl = flags.url ?? loadHuman(repo).demoUrl;
+    const deployed = readArtifact(repo, "deploy.json");
+    const demoUrl = flags.url ?? loadHuman(repo).demoUrl ?? (deployed ? (JSON.parse(deployed) as { url: string }).url : undefined);
     if (!flags.online) {
       add("readme.external-links", "Внешние ссылки README отвечают", "skip", [`не проверялись (${external.length}): добавьте --online`]);
       add("deploy.url", "Работающая версия отвечает", "skip", [demoUrl ? "не проверялась: добавьте --online" : "адрес не указан"]);

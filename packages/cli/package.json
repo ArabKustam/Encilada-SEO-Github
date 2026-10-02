@@ -19,6 +19,7 @@
     "@repokit/brief": "workspace:*",
     "@repokit/readme": "workspace:*",
     "@repokit/preview": "workspace:*",
-    "@repokit/verify": "workspace:*"
+    "@repokit/verify": "workspace:*",
+    "@repokit/deploy": "workspace:*"
   }
 }
