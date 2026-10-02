@@ -20153,7 +20153,7 @@ function redact(text, env = process.env) {
 }
 
 // packages/core/dist/envelope.js
-var VERSION = "0.2.0";
+var VERSION = "0.2.1";
 function commonFlags(command) {
   return command.option("--repo <path>", "целевой репозиторий", ".").option("--json", "один JSON-документ в stdout").option("--dry-run", "ничего не записывать").option("--verbose", "подробный вывод в stderr");
 }
@@ -22775,7 +22775,7 @@ var IMAGE = /!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?[^)]*\)|<img\b[^>]*\bsrc="([^"]+)"[
 var ACTION_LINK = /demo|live|docs|documentation|install|get started|quick ?start|try|website|демо|документаци|установ|попробовать|быстрый старт|сайт/i;
 var INSTALL_HEADING = /install|quick ?start|getting started|usage|установк|быстрый старт|запуск|начало работы/i;
 var VISUAL_KINDS = /* @__PURE__ */ new Set(["web-app", "mobile-app", "desktop-app", "game"]);
-var MOTION = /\.(gif|mp4|webm)(\?|#|$)|user-attachments|<video/i;
+var MOTION = /\.(gif|mp4|webm)(?=[?#"')\s]|$)|user-attachments|<video/i;
 var ASSET_DIRS2 = /^(docs\/(assets|media|images|img|screenshots)|\.github\/(assets|images)|assets|media|images|screenshots)\//i;
 var MEDIA_EXT2 = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4", ".webm"]);
 var EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;

@@ -10,7 +10,7 @@ import { analyze } from "@repokit/scan";
 import { FrameRecorder, OUTPUT_FPS } from "./recorder.js";
 import { runScenario, shotPath, type CaptureEvent } from "./runner.js";
 import { DEFAULT_VIEWPORT, draftScenario, envReferences, loadScenario, resolveEnv, type Scenario, type Viewport } from "./scenario.js";
-import { launchBrowser, masks, openContext, startApp } from "./session.js";
+import { launchBrowser, masks, openContext, scrollOf, startApp } from "./session.js";
 import { runInTerminal, terminalSvg, terminalText } from "./terminal.js";
 
 export { pointerPath, scrollDeltas, moveDuration, easeInOutCubic } from "./motion.js";
@@ -122,7 +122,7 @@ async function run(flags: ScenarioFlags): Promise<CommandResult<RunData | { plan
     try {
       const context = await openContext(browser, scenario, repo, viewport);
       const page = await context.newPage();
-      const recorder = new FrameRecorder(await context.newCDPSession(page), dir, viewport);
+      const recorder = new FrameRecorder(await context.newCDPSession(page), dir, viewport, scrollOf(context));
 
       // Load the first page before recording so the video does not open on a blank tab.
       const [first, ...rest] = scenario.steps;
@@ -239,7 +239,7 @@ async function shotsCommand(flags: ShotsFlags): Promise<CommandResult<{ shots: s
           const viewport = SIZES[size] ?? viewportOf(scenario);
           const context = await openContext(browser, scenario, repo, viewport, theme);
           const page = await context.newPage();
-          const stills = new FrameRecorder(await context.newCDPSession(page), outDir, viewport);
+          const stills = new FrameRecorder(await context.newCDPSession(page), outDir, viewport, scrollOf(context));
           await runScenario({
             page, scenario, viewport,
             onMark: async (name) => {

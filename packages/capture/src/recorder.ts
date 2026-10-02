@@ -8,6 +8,7 @@ import type { Viewport } from "./scenario.js";
 const JPEG_QUALITY = 92;
 const FRAMES_DIR = "frames";
 export const OUTPUT_FPS = 30;
+const CAPTURE_TIMEOUT_MS = 2000;
 
 interface Frame {
   file: string;
@@ -27,22 +28,36 @@ export class FrameRecorder {
   private startedAt = 0;
   private readonly writes: Promise<void>[] = [];
 
-  constructor(private readonly cdp: CDPSession, private readonly dir: string, private readonly viewport: Viewport) {}
+  constructor(
+    private readonly cdp: CDPSession,
+    private readonly dir: string,
+    private readonly viewport: Viewport,
+    /** Where the page is scrolled to right now; see `scrollOf` in session.ts. */
+    private readonly scroll: () => { x: number; y: number } = () => ({ x: 0, y: 0 }),
+  ) {}
 
   /** Seconds on the recording clock; events are stamped with this. */
   now(): number {
     return (performance.now() - this.startedAt) / 1000;
   }
 
-  private screenshot(format: "jpeg" | "png"): Promise<{ data: string }> {
+  /** One capture of the visible area, or null if the browser did not answer in time. */
+  private screenshot(format: "jpeg" | "png"): Promise<{ data: string } | null> {
     const { width, height, deviceScaleFactor } = this.viewport;
-    return this.cdp.send("Page.captureScreenshot", {
+    // The clip is in document coordinates: on a scrolled page it has to follow the visible area.
+    const { x, y } = this.scroll();
+    const capture = this.cdp.send("Page.captureScreenshot", {
       format,
       ...(format === "jpeg" ? { quality: JPEG_QUALITY } : {}),
       optimizeForSpeed: format === "jpeg",
       // Without an explicit clip scale the capture comes back at CSS-pixel size.
-      clip: { x: 0, y: 0, width, height, scale: deviceScaleFactor },
+      clip: { x, y, width, height, scale: deviceScaleFactor },
     });
+    // A capture requested just as the page navigates away may never be answered:
+    // its clip belongs to a document that no longer exists. The frame is skipped, the recording goes on.
+    let timer: NodeJS.Timeout;
+    const expired = new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), CAPTURE_TIMEOUT_MS)));
+    return Promise.race([capture.catch(() => null), expired]).finally(() => clearTimeout(timer));
   }
 
   start(): void {
@@ -52,7 +67,9 @@ export class FrameRecorder {
     this.loop = (async () => {
       while (this.running) {
         const requested = this.now();
-        const { data } = await this.screenshot("jpeg");
+        const shot = await this.screenshot("jpeg");
+        if (!shot) continue;
+        const { data } = shot;
         // The frame shows the page at some moment between request and response.
         const t = this.frames.length === 0 ? 0 : (requested + this.now()) / 2;
         const file = `${FRAMES_DIR}/${String(this.frames.length + 1).padStart(6, "0")}.jpg`;
@@ -64,8 +81,9 @@ export class FrameRecorder {
 
   /** A lossless still of the current page, for scenario marks. */
   async still(file: string): Promise<void> {
-    const { data } = await this.screenshot("png");
-    writeFileSync(file, Buffer.from(data, "base64"));
+    const shot = (await this.screenshot("png")) ?? (await this.screenshot("png"));
+    if (!shot) throw new Error(`Браузер не отдал кадр для ${file}`);
+    writeFileSync(file, Buffer.from(shot.data, "base64"));
   }
 
   /** Stop recording and encode the frames into a constant-frame-rate MP4. Returns duration in seconds. */

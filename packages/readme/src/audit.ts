@@ -68,7 +68,7 @@ const IMAGE = /!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?[^)]*\)|<img\b[^>]*\bsrc="([^"]+)
 const ACTION_LINK = /demo|live|docs|documentation|install|get started|quick ?start|try|website|демо|документаци|установ|попробовать|быстрый старт|сайт/i;
 const INSTALL_HEADING = /install|quick ?start|getting started|usage|установк|быстрый старт|запуск|начало работы/i;
 const VISUAL_KINDS = new Set(["web-app", "mobile-app", "desktop-app", "game"]);
-const MOTION = /\.(gif|mp4|webm)(\?|#|$)|user-attachments|<video/i;
+const MOTION = /\.(gif|mp4|webm)(?=[?#"')\s]|$)|user-attachments|<video/i;
 const ASSET_DIRS = /^(docs\/(assets|media|images|img|screenshots)|\.github\/(assets|images)|assets|media|images|screenshots)\//i;
 const MEDIA_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4", ".webm"]);
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;

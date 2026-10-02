@@ -10,7 +10,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // packages/core/dist/envelope.js
-var VERSION = "0.2.0";
+var VERSION = "0.2.1";
 
 // packages/core/dist/files.js
 var MAX_TEXT_BYTES = 512 * 1024;

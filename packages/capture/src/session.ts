@@ -114,7 +114,26 @@ export async function openContext(
     if (document.documentElement) inject();
     else document.addEventListener("DOMContentLoaded", inject);
   }, css);
+  // The page reports its scroll position, so that frames can be cut from the visible area.
+  // A new document starts by reporting where it is, which resets the position after navigation.
+  const position = { x: 0, y: 0 };
+  scrollPositions.set(context, position);
+  await context.exposeBinding("__repokitScroll", (_source, x: number, y: number) => {
+    position.x = x;
+    position.y = y;
+  });
+  await context.addInitScript(() => {
+    if (window !== window.top) return;
+    const report = () => (window as unknown as { __repokitScroll: (x: number, y: number) => void }).__repokitScroll(window.scrollX, window.scrollY);
+    window.addEventListener("scroll", report, { passive: true });
+    report();
+  });
   return context;
 }
+
+const scrollPositions = new WeakMap<BrowserContext, { x: number; y: number }>();
+
+/** Current scroll position of the page recorded in this context. */
+export const scrollOf = (context: BrowserContext) => () => scrollPositions.get(context) ?? { x: 0, y: 0 };
 
 export const masks = (scenario: Scenario) => [...new Set([ALWAYS_MASKED, ...(scenario.mask ?? [])])];
