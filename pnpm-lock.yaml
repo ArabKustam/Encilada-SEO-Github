@@ -350,6 +350,9 @@ importers:
       '@repokit/presets':
         specifier: workspace:*
         version: link:../../presets
+      '@repokit/readme':
+        specifier: workspace:*
+        version: link:../readme
       commander:
         specifier: ^15.0.0
         version: 15.0.0

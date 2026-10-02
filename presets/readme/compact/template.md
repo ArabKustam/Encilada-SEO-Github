@@ -1,4 +1,5 @@
 {{header}}
+{{stack}}
 {{features}}
 {{quickstart}}
 {{demo}}

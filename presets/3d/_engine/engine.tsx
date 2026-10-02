@@ -27,7 +27,7 @@ export function roundedRect(width: number, height: number, radius: number): THRE
 }
 
 /** Flat rounded rectangle whose UVs show the centred `uvWidth × uvHeight` part of a texture. */
-function screenGeometry(width: number, height: number, radius: number, uvWidth: number, uvHeight: number): THREE.ShapeGeometry {
+export function screenGeometry(width: number, height: number, radius: number, uvWidth: number, uvHeight: number): THREE.ShapeGeometry {
   const geometry = new THREE.ShapeGeometry(roundedRect(width, height, radius), 12);
   const position = geometry.attributes.position;
   const uv = geometry.attributes.uv;
@@ -56,7 +56,7 @@ export const RoundedSlab: FC<{ width: number; height: number; depth: number; rad
   return <mesh geometry={geometry}>{children}</mesh>;
 };
 
-function useImageTexture(src: string): THREE.Texture | null {
+export function useImageTexture(src: string): THREE.Texture | null {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   // Hold the frame until the image is decoded, otherwise the first frames render an empty screen.
   const [handle] = useState(() => delayRender(`Loading slot image ${src}`));
@@ -92,7 +92,7 @@ interface MediaPlaneProps {
 
 // Screen content is unlit and not tone-mapped: the device must not tint or dim what the app really looks like.
 // The keys force a new material once the texture arrives: a shader compiled without a map ignores one added later.
-const MediaMaterial: FC<{ texture: THREE.Texture | null }> = ({ texture }) =>
+export const MediaMaterial: FC<{ texture: THREE.Texture | null }> = ({ texture }) =>
   texture ? <meshBasicMaterial key="media" map={texture} toneMapped={false} /> : <meshBasicMaterial key="empty" color="#000" />;
 
 const ImagePlane: FC<MediaPlaneProps> = ({ media, geometry }) => {
@@ -104,9 +104,13 @@ const ImagePlane: FC<MediaPlaneProps> = ({ media, geometry }) => {
   );
 };
 
-const VideoPlane: FC<MediaPlaneProps> = ({ media, geometry }) => {
+/**
+ * The current frame of a video as a texture. Must be rendered inside a Remotion sequence;
+ * the frame is held until the texture has actually been painted.
+ */
+export function useVideoFrameTexture(src: string, playbackRate = 1): THREE.Texture | null {
   const frame = useCurrentFrame();
-  const texture = useOffthreadVideoTexture({ src: staticFile(media.src) });
+  const texture = useOffthreadVideoTexture({ src: staticFile(src), playbackRate });
   if (texture) texture.colorSpace = THREE.SRGBColorSpace;
 
   // The hook releases the frame as soon as the video frame is loaded, before it is drawn.
@@ -114,19 +118,23 @@ const VideoPlane: FC<MediaPlaneProps> = ({ media, geometry }) => {
   const advance = useThree((state) => state.advance);
   const pending = useRef<number | null>(null);
   useLayoutEffect(() => {
-    pending.current = delayRender(`Drawing video frame ${frame} of ${media.src}`);
+    pending.current = delayRender(`Drawing video frame ${frame} of ${src}`);
     return () => {
       if (pending.current !== null) continueRender(pending.current);
       pending.current = null;
     };
-  }, [frame, media.src]);
+  }, [frame, src]);
   useEffect(() => {
     if (!texture || pending.current === null) return;
     advance(performance.now());
     continueRender(pending.current);
     pending.current = null;
   }, [texture, advance]);
+  return texture;
+}
 
+const VideoPlane: FC<MediaPlaneProps> = ({ media, geometry }) => {
+  const texture = useVideoFrameTexture(media.src);
   return (
     <mesh geometry={geometry} position={[0, 0, 0.002]}>
       <MediaMaterial texture={texture} />
@@ -138,7 +146,7 @@ const VideoPlane: FC<MediaPlaneProps> = ({ media, geometry }) => {
  * Paints the canvas for the current frame before Remotion captures it. Without this the
  * capture can run ahead of three.js, which repaints only on the next animation frame.
  */
-const FrameSync: FC = () => {
+export const FrameSync: FC = () => {
   const frame = useCurrentFrame();
   const advance = useThree((state) => state.advance);
   const [handle] = useState(() => ({ current: null as number | null }));

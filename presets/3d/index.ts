@@ -14,3 +14,5 @@ const SCENES: Record<string, SceneComponent> = {
 export const REGISTERED_PRESETS = Object.keys(SCENES);
 export const Preset3D = createPresetComposition(SCENES);
 export { PRESET_COMPOSITION_ID } from "./_engine/types.js";
+export { Stage3D } from "./_engine/stage.js";
+export { STAGE_COMPOSITION_ID } from "./_engine/stage-types.js";

@@ -106,6 +106,43 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
     expect(checked.envelope.data.firstScreen[0].images).toBeGreaterThan(0);
   }, 300_000);
 
+  it("renders a directed scene: a camera that travels to each click, lifted elements, sparks", () => {
+    const init = repokit(["studio", "scene", "init", "--out", "demo.scene.json"]);
+    expect(init.code, init.stderr).toBe(0);
+    const file = join(repo, "demo.scene.json");
+    const scene = JSON.parse(readFileSync(file, "utf8"));
+    expect(scene.objects[0]).toMatchObject({ device: "browser", media: video, effects: { ripple: true, sparks: true, popOut: true } });
+
+    // The scene is plain JSON: shorten it, tilt the window and add an effect by hand, as an author would.
+    Object.assign(scene.output, { width: 480, height: 270, fps: 15, duration: 4 });
+    scene.objects[0].keyframes = [{ at: 0, rotation: [6, -25, 0], scale: 0.85 }, { at: 1.2, rotation: [0, 0, 0], scale: 1, ease: "back" }];
+    scene.effects = [{ type: "sparks", object: "app", at: 0.5, point: [640, 360] }];
+    writeFileSync(file, JSON.stringify(scene));
+
+    const rendered = repokit(["studio", "render", "--scene", file, "--gl", "swangle", "--out", "docs/media/scene.mp4", "--gif"]);
+    expect(rendered.code, rendered.stderr).toBe(0);
+    expect(rendered.envelope.data).toMatchObject({ mode: "scene", scene: "demo.scene.json", durationSeconds: 4 });
+    expect(rendered.envelope.warnings).toEqual([]);
+    expect(statSync(join(repo, "docs/media/scene.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
+  }, 600_000);
+
+  it("makes a banner and slides from facts, and binds the slides into a PDF", () => {
+    const banner = repokit(["studio", "banner", "--out", "docs/media/banner.png", "--width", "640"]);
+    expect(banner.code, banner.stderr).toBe(0);
+    // The cover image is a screenshot from the capture above, so its origin is known.
+    expect(banner.envelope.warnings).toEqual([]);
+    expect(banner.envelope.data.deck.slides[0].image).toMatch(/shots\/tasks\.png$/);
+
+    const init = repokit(["studio", "deck", "init", "--out", "slides.deck.json"]);
+    expect(init.code, init.stderr).toBe(0);
+    const rendered = repokit(["studio", "deck", "render", "--deck", join(repo, "slides.deck.json"), "--out-dir", "docs/slides", "--width", "640", "--pdf"]);
+    expect(rendered.code, rendered.stderr).toBe(0);
+    const outputs = rendered.envelope.data.outputs.map((o: { path: string }) => o.path);
+    expect(outputs).toContain("docs/slides/slide-01.png");
+    expect(outputs[outputs.length - 1]).toBe("docs/slides/slides.pdf");
+    expect(readFileSync(join(repo, "docs/slides/slides.pdf")).subarray(0, 8).toString("latin1")).toBe("%PDF-1.4" );
+  }, 600_000);
+
   it("refuses to render a preset with an empty slot", () => {
     const { code, envelope } = repokit(["studio", "render", "--preset", "laptop-orbit", "--out", "x.mp4"]);
     expect(code).toBe(2);

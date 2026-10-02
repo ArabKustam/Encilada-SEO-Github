@@ -14,13 +14,13 @@
       "path": "presets"
     },
     {
-      "path": "packages/studio"
-    },
-    {
       "path": "packages/brief"
     },
     {
       "path": "packages/readme"
+    },
+    {
+      "path": "packages/studio"
     },
     {
       "path": "packages/preview"

@@ -31,6 +31,29 @@ const CASES: { preset: string; media: string; frames: number[] }[] = [
 const repo = mkdtempSync(join(tmpdir(), "repokit-snapshots-"));
 afterAll(() => rmSync(repo, { recursive: true, force: true }));
 
+/** Compare a rendered frame with its baseline, or record it as the baseline when asked to. */
+function compare(output: string, name: string, label: string): void {
+  const baselineFile = join(SNAPSHOTS, name);
+  if (update || !existsSync(baselineFile)) {
+    mkdirSync(SNAPSHOTS, { recursive: true });
+    copyFileSync(output, baselineFile);
+    return;
+  }
+  const actual = PNG.sync.read(readFileSync(output));
+  const baseline = PNG.sync.read(readFileSync(baselineFile));
+  expect([actual.width, actual.height], `${label}: size`).toEqual([baseline.width, baseline.height]);
+  const diff = new PNG({ width: actual.width, height: actual.height });
+  const differing = pixelmatch(actual.data, baseline.data, diff.data, actual.width, actual.height, { threshold: PIXEL_THRESHOLD });
+  const ratio = differing / (actual.width * actual.height);
+  if (ratio > MAX_DIFF_RATIO) {
+    const failed = join(SNAPSHOTS, "__failed__");
+    mkdirSync(failed, { recursive: true });
+    copyFileSync(output, join(failed, name.replace(/\.png$/, ".actual.png")));
+    writeFileSync(join(failed, name.replace(/\.png$/, ".diff.png")), PNG.sync.write(diff));
+  }
+  expect(ratio, `${label}: ${(ratio * 100).toFixed(2)}% of pixels differ`).toBeLessThanOrEqual(MAX_DIFF_RATIO);
+}
+
 describe.skipIf(!enabled)("3D preset snapshots", () => {
   it.each(CASES)("$preset matches its baseline frames", async ({ preset, media, frames }) => {
     // The built package is used on purpose: the Remotion entry point exists only after compilation.
@@ -41,27 +64,28 @@ describe.skipIf(!enabled)("3D preset snapshots", () => {
     const outputs = frames.map((frame) => ({ frame, output: join(repo, `${preset}-${frame}.png`) }));
     await studio.renderStills(job, outputs);
 
-    for (const { frame, output } of outputs) {
-      const baselineFile = join(SNAPSHOTS, `${preset}-${String(frame).padStart(3, "0")}.png`);
-      if (update || !existsSync(baselineFile)) {
-        mkdirSync(SNAPSHOTS, { recursive: true });
-        copyFileSync(output, baselineFile);
-        continue;
-      }
-      const actual = PNG.sync.read(readFileSync(output));
-      const baseline = PNG.sync.read(readFileSync(baselineFile));
-      expect([actual.width, actual.height], `${preset} frame ${frame}: size`).toEqual([baseline.width, baseline.height]);
-      const diff = new PNG({ width: actual.width, height: actual.height });
-      const differing = pixelmatch(actual.data, baseline.data, diff.data, actual.width, actual.height, { threshold: PIXEL_THRESHOLD });
-      const ratio = differing / (actual.width * actual.height);
-      if (ratio > MAX_DIFF_RATIO) {
-        const failed = join(SNAPSHOTS, "__failed__");
-        mkdirSync(failed, { recursive: true });
-        copyFileSync(output, join(failed, `${preset}-${frame}.actual.png`));
-        writeFileSync(join(failed, `${preset}-${frame}.diff.png`), PNG.sync.write(diff));
-      }
-      expect(ratio, `${preset} frame ${frame}: ${(ratio * 100).toFixed(2)}% of pixels differ`).toBeLessThanOrEqual(MAX_DIFF_RATIO);
-    }
+    for (const { frame, output } of outputs) compare(output, `${preset}-${String(frame).padStart(3, "0")}.png`, `${preset} frame ${frame}`);
+  }, 300_000);
+
+  it("a directed scene matches its baseline frames", async () => {
+    const studio = await import("../../packages/studio/dist/index.js");
+    copyFileSync(join(FIXTURES, "pattern-16x10.png"), join(repo, "stage.png"));
+    const { props, files } = await studio.resolveScene(repo, {
+      schemaVersion: 1,
+      output: { width: WIDTH, height: 270, fps: 30, duration: 2 },
+      background: "dark",
+      objects: [{ id: "app", device: "browser", media: "stage.png", rotation: [4, -20, 0], keyframes: [{ at: 2, rotation: [0, 10, 0], ease: "linear" }] }],
+      camera: { keyframes: [{ at: 0, focus: { object: "app", zoom: 0.75 } }, { at: 2, focus: { object: "app", point: [1200, 300], zoom: 2, yaw: 12 }, ease: "linear" }] },
+      effects: [
+        { type: "popOut", object: "app", box: [1000, 200, 300, 200], from: 0.2, to: 2 },
+        { type: "sparks", object: "app", at: 0.9, point: [1150, 300] },
+        { type: "ripple", object: "app", at: 0.8, point: [1150, 300] },
+      ],
+    });
+    const frames = [0, 30, 59];
+    const outputs = frames.map((frame) => ({ frame, output: join(repo, `stage-${frame}.png`) }));
+    await studio.renderStills({ compositionId: "Stage3D", inputProps: props, files, gl: studio.glBackend("swangle") }, outputs);
+    for (const { frame, output } of outputs) compare(output, `stage-${String(frame).padStart(3, "0")}.png`, `stage frame ${frame}`);
   }, 300_000);
 
   it("the media in the slot is really on screen", async () => {

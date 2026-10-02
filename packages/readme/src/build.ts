@@ -4,6 +4,7 @@ import { fileSha256, type HumanTodo, type MediaEntry, type ReadmeSlotId } from "
 import type { Claim } from "@repokit/scan";
 import { buildGraph, mermaid } from "./architecture.js";
 import { HUMAN_FILE, type Context, type ReadmePreset, type TemplateSlot } from "./context.js";
+import { badgeMarkdown, detectStack, technologyByName } from "./stack.js";
 
 export type SlotStatus = "filled" | "empty" | "omitted";
 
@@ -93,7 +94,9 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
       const base = `https://github.com/${ctx.github.owner}/${ctx.github.repo}/actions`;
       out.push(`[![CI](${base}/workflows/${workflow}/badge.svg)](${base})`);
     }
-    const language = scan.project.languages.find((l) => !["HTML", "CSS"].includes(l.name));
+    // With a tech-stack section in the preset the language is shown there, with its logo.
+    const language = inPreset.has("stack") && !skipped.has("stack") ? undefined : scan.project.languages.find((l) => !["HTML", "CSS"].includes(l.name));
+    if (language) badgeNames.push("язык");
     if (language) out.push(`![${language.name}](https://img.shields.io/badge/${encodeURIComponent(language.name)}-informational)`);
     return out;
   }
@@ -104,7 +107,7 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
       const body = [`# ${title}`, tagline, badges().join(" ")].filter(Boolean).join("\n\n");
       const markdown = slot.options.variant === "centered" ? `<div align="center">\n\n${body}\n\n</div>` : body;
       return human.tagline
-        ? filled(markdown, `название: ${human.title ? HUMAN_PATH : "имя проекта"}; тэглайн: ${HUMAN_PATH}; бейджи: ${[...badgeNames, "язык"].join(", ")}`)
+        ? filled(markdown, `название: ${human.title ? HUMAN_PATH : "имя проекта"}; тэглайн: ${HUMAN_PATH}; бейджи: ${badgeNames.join(", ") || "нет"}`)
         : { status: "empty", note: `нужен тэглайн — поле tagline в ${HUMAN_PATH}`, markdown };
     },
 
@@ -122,6 +125,16 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
         : img;
       const caption = showsDemoData(ctx, provenance(ctx, hero)) ? `\n\n<p align="center"><sub>${phrases.demoData}</sub></p>` : "";
       return filled(`<p align="center">\n${picture}\n</p>${caption}`, `медиа: ${hero}${ctx.options.heroDark ? ` и ${ctx.options.heroDark} для тёмной темы` : ""}`);
+    },
+
+    stack: () => {
+      const detected = detectStack(scan, ctx.files);
+      const names = new Set(detected.map((t) => t.name.toLowerCase()));
+      const added = (human.stack ?? []).map(technologyByName).filter((t) => !names.has(t.name.toLowerCase()));
+      if (added.length > 0) warnings.push(`технологии добавлены автором и не подтверждены зависимостями или файлами проекта: ${added.map((t) => t.name).join(", ")}`);
+      const all = [...detected, ...added];
+      if (all.length === 0) return omitted("технологии не определены");
+      return filled(`${heading("stack")}\n\n${all.map(badgeMarkdown).join(" ")}`, `определено по коду и зависимостям: ${detected.map((t) => t.name).join(", ") || "—"}${added.length ? `; добавлено автором: ${added.map((t) => t.name).join(", ")}` : ""}`);
     },
 
     problem: () => (human.problem ? filled(`${heading("problem")}\n\n${human.problem.trim()}`, HUMAN_PATH) : empty("problem", `какую проблему решает проект — поле problem в ${HUMAN_PATH}`)),

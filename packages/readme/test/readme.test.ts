@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { extractClaims, mergeClaims, pinClaims, type ClaimsDoc } from "@repokit/scan";
-import { checkReadme, draftReadme, listReadmePresets, mergeCustomSections, slug, type Options } from "../src/index.js";
+import { analyze } from "@repokit/scan";
+import { badgeUrl, checkReadme, detectStack, draftReadme, listReadmePresets, mergeCustomSections, slug, technologyByName, type Options } from "../src/index.js";
 
 const EXAMPLE = fileURLToPath(new URL("../../../examples/web-app/", import.meta.url));
 const repo = mkdtempSync(join(tmpdir(), "repokit-readme-"));
@@ -119,6 +120,34 @@ describe("draftReadme", () => {
     const first = draftReadme(repo, options()).markdown;
     writeFileSync(join(repo, "README.md"), first);
     expect(draftReadme(repo, options()).markdown).toBe(first);
+  });
+});
+
+describe("tech stack", () => {
+  it("lists only technologies the repository gives evidence for", () => {
+    const names = (name: string, files: string[]) => detectStack(analyze(join(EXAMPLE, "..", name)), new Set(files)).map((t) => t.name);
+    expect(names("web-app", ["requirements.txt"])).toEqual(["Python", "JavaScript", "HTML5", "CSS3", "FastAPI", "Pytest"]);
+    expect(names("web-app-node", ["package.json", "Dockerfile"])).toEqual(["JavaScript", "HTML5", "Node.js", "Express", "Docker"]);
+    expect(names("cli-tool", [])).toEqual(["Python"]);
+  });
+
+  it("builds for-the-badge shields with the logo and brand colour", () => {
+    expect(badgeUrl(technologyByName("python"))).toBe("https://img.shields.io/badge/Python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54");
+    expect(badgeUrl(technologyByName("Tailwind CSS"))).toBe("https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white");
+    expect(badgeUrl(technologyByName("scikit-learn"))).toContain("/scikit--learn-F7931E?");
+    // Something repokit has never heard of still gets a badge, just without a logo.
+    expect(badgeUrl(technologyByName("Свой движок"))).toBe(`https://img.shields.io/badge/${encodeURIComponent("Свой_движок")}-555555?style=for-the-badge`);
+  });
+
+  it("puts the stack into the README and says which entries the author added without evidence", () => {
+    artifact("readme.human.yaml", "tagline: Список задач\nstack: [PostgreSQL, FastAPI]\n");
+    const { markdown, plan } = draftReadme(repo, options());
+    const section = markdown.slice(markdown.indexOf("## Технологии"), markdown.indexOf("## Проблема"));
+    expect(section).toContain("![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)");
+    expect(section).toContain("![PostgreSQL]");
+    // FastAPI is detected, so it is neither duplicated nor reported; PostgreSQL is the author's word alone.
+    expect(section.match(/!\[FastAPI\]/g)).toHaveLength(1);
+    expect(plan.warnings.some((w) => w.includes("не подтверждены") && w.includes("PostgreSQL") && !w.includes("FastAPI"))).toBe(true);
   });
 });
 

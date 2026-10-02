@@ -18,6 +18,8 @@ export { buildGraph, mermaid } from "./architecture.js";
 export { DEFAULT_OPTIONS, findReadmePreset, HUMAN_FILE, LANGUAGES, listReadmePresets, loadContext, loadHuman, loadOptions } from "./context.js";
 export type { Context, Human, Language, Options, ReadmePreset } from "./context.js";
 export { checkReadme, mergeCustomSections } from "./merge.js";
+export { badgeMarkdown, badgeUrl, detectStack, technologyByName } from "./stack.js";
+export type { Technology } from "./stack.js";
 export type { ReadmeProblem } from "./merge.js";
 
 const README = "README.md";
@@ -53,6 +55,9 @@ team:
 #  - name: Имя Фамилия
 #    role: бэкенд
 #    link: https://github.com/username
+
+# Технологии, которые repokit не определил сам (он находит их по зависимостям и файлам)
+stack: []
 
 # Что планируется, но ещё не сделано
 roadmap: []

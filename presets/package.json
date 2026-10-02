@@ -16,6 +16,14 @@
     "./path": {
       "types": "./dist/3d/_engine/path.d.ts",
       "default": "./dist/3d/_engine/path.js"
+    },
+    "./motion": {
+      "types": "./dist/3d/_engine/motion.d.ts",
+      "default": "./dist/3d/_engine/motion.js"
+    },
+    "./stage-types": {
+      "types": "./dist/3d/_engine/stage-types.d.ts",
+      "default": "./dist/3d/_engine/stage-types.js"
     }
   },
   "files": [

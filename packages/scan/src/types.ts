@@ -49,6 +49,8 @@ export interface ScanResult {
     types: ProjectType[];
     languages: { name: string; files: number; bytes: number }[];
     frameworks: string[];
+    /** Names of declared dependencies (package.json, requirements, pyproject), lower-cased. */
+    dependencies: string[];
     packageManager: string | null;
     commands: { install?: string; run?: string; test?: string };
   };

@@ -37,7 +37,7 @@ interface RunFlags {
   rules?: string;
   defaultBrief?: boolean;
   preset: string;
-  preset3d: string;
+  device: string;
   exec?: boolean;
   online?: boolean;
   reset?: boolean;
@@ -157,7 +157,10 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
       }
       const recorded = must(["capture", "run", "--scenario", scenario]);
       const flat = must(["studio", "render", "--capture", recorded.data.runId, "--out", `${HERO}.mp4`, "--gif"]);
-      const spatial = must(["studio", "render", "--preset", flags.preset3d, "--slot", `main=${recorded.data.video}`, "--out", `${HERO_3D}.mp4`, "--gif"]);
+      // The 3D version is a directed scene: the camera really travels to each click, and clicked elements lift off the page.
+      const sceneFile = join(repo, REPOKIT_DIR, "hero.scene.json");
+      must(["studio", "scene", "init", "--capture", recorded.data.runId, "--device", flags.device, "--out", repoRelative(repo, sceneFile), "--force"]);
+      const spatial = must(["studio", "render", "--scene", sceneFile, "--out", `${HERO_3D}.mp4`, "--gif"]);
       const size = (envelope: Envelope<any>) => (envelope.data.gif.bytes / 1024 / 1024).toFixed(2);
       return `запись ${recorded.data.duration} с; ${HERO}.gif ${size(flat)} МБ, ${HERO_3D}.gif ${size(spatial)} МБ`;
     },
@@ -255,7 +258,7 @@ export function registerRun(program: Command): void {
     .option("--rules <file>", "файл с правилами хакатона")
     .option("--default-brief", "правил нет — взять типовой набор критериев")
     .option("--preset <name>", "пресет README", "showcase")
-    .option("--preset-3d <name>", "3D-пресет для второй версии демо", "browser-tilt")
+    .option("--device <name>", "устройство для 3D-версии демо: browser, laptop, phone, screen", "browser")
     .option("--exec", "при проверке выполнить команды Quick start из README")
     .option("--online", "при проверке обратиться к внешним ссылкам")
     .option("--reset", "забыть выполненные шаги и начать заново")

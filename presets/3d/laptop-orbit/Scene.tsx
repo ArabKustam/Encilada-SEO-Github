@@ -1,16 +1,18 @@
+import type { FC, ReactNode } from "react";
 import { RoundedSlab, Screen, SoftShadow } from "../_engine/engine.js";
 import type { SceneComponent } from "../_engine/types.js";
 
 /** Dimensions in scene units; the laptop is procedural and resembles no particular product. */
 const BASE = { width: 3.3, depth: 2.25, thickness: 0.1, radius: 0.14 };
 const LID = { height: 2.16, thickness: 0.07 };
-const SCREEN_WIDTH = 3.06;
+export const LAPTOP_SCREEN = { width: 3.06, aspect: 1.6, radius: 0.03 };
 /** How far the lid leans back from vertical, in radians. */
 const LID_TILT = 0.3;
 const BODY_COLOR = "#c9ccd3";
 const DARK = "#17181c";
 
-export const Scene: SceneComponent = () => (
+/** The laptop itself. `children` receives the screen width and renders whatever goes on the screen. */
+export const Laptop: FC<{ children: (screenWidth: number) => ReactNode }> = ({ children }) => (
   <group position={[0, -0.75, 0]}>
     <SoftShadow width={5.6} height={4.2} opacity={0.42} position={[0, 0.001, 0.2]} rotation={[-Math.PI / 2, 0, 0]} />
 
@@ -41,10 +43,10 @@ export const Scene: SceneComponent = () => (
           <planeGeometry args={[BASE.width - 0.08, LID.height - 0.08]} />
           <meshStandardMaterial color={DARK} roughness={0.6} />
         </mesh>
-        <group position={[0, 0.02, LID.thickness / 2 + 0.003]}>
-          <Screen slot="main" width={SCREEN_WIDTH} radius={0.03} />
-        </group>
+        <group position={[0, 0.02, LID.thickness / 2 + 0.003]}>{children(LAPTOP_SCREEN.width)}</group>
       </group>
     </group>
   </group>
 );
+
+export const Scene: SceneComponent = () => <Laptop>{(width) => <Screen slot="main" width={width} radius={LAPTOP_SCREEN.radius} />}</Laptop>;

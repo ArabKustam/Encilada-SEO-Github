@@ -31,3 +31,4 @@ export type DemoProps = {
 };
 
 export const COMPOSITION_ID = "Demo";
+export const DECK_COMPOSITION_ID = "Deck";

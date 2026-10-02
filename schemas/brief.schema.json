@@ -93,7 +93,7 @@
             "items": { "enum": ["feature", "demo", "architecture", "tests", "deploy", "docs", "team"] }
           },
           "readmeSlot": {
-            "enum": ["header", "hero", "problem", "solution", "features", "demo", "architecture", "routes", "quickstart", "judges", "limitations", "team", "license"]
+            "enum": ["header", "hero", "stack", "problem", "solution", "features", "demo", "architecture", "routes", "quickstart", "judges", "limitations", "team", "license"]
           }
         }
       }

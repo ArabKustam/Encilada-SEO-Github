@@ -120,6 +120,42 @@ node packages/cli/dist/bin.js studio render --repo examples/web-app --preset lap
 
 Как добавить свой пресет — в [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+## Режиссёрские сцены
+
+Когда пресета мало: свои объекты, движение камеры к любой точке страницы, эффекты по кликам — см. [scenes.md](scenes.md).
+
+## Баннеры и слайды
+
+Статичные картинки из фактов о проекте: название и тэглайн из полей автора, возможности — только подтверждённые кодом,
+технологии — найденные в зависимостях, изображения — настоящие скриншоты из `capture`.
+
+```bash
+node packages/cli/dist/bin.js studio banner --repo examples/web-app --out docs/media/banner.png
+```
+
+```bash
+node packages/cli/dist/bin.js studio deck init --repo examples/web-app
+```
+
+```bash
+node packages/cli/dist/bin.js studio deck render --repo examples/web-app --deck examples/web-app/slides.deck.json --out-dir docs/slides --pdf
+```
+
+| Команда | Результат |
+|---|---|
+| `studio banner --out x.png [--theme dark] [--width 1280]` | баннер 1280×640 (формат обложки репозитория на GitHub) |
+| `studio deck init [--kind slides\|banner] [--theme light]` | описание слайдов `slides.deck.json`, собранное из фактов; его можно править |
+| `studio deck render --deck f --out-dir docs/slides [--pdf]` | `slide-01.png`, … и, по флагу, `slides.pdf` |
+
+Автоматически собираются слайды: титульный, проблема, решение, «что уже работает», скриншоты, технологии,
+«что ещё не готово», команда, ссылки. Слайд без данных не создаётся, а пропуск попадает в список «для человека» —
+текста за автора repokit не пишет. Слайд об ограничениях строится из утверждений-заглушек так же, как в README.
+
+Описание слайдов — обычный JSON ([schemas/deck.schema.json](../schemas/deck.schema.json)) с макетами `title`, `split`,
+`text`, `bullets`, `image`, `chips` и рамками `browser`, `phone`, `none`. Темы: `light`, `dark`, `glass`, `sunset`, `mint`, `mono`.
+
+Плашки технологий на слайдах нарисованы текстом в фирменном цвете, без логотипов. PDF содержит только картинки слайдов.
+
 ## Происхождение
 
 Каждый результат записывается в `.repokit/media.manifest.json` с полем `derivedFrom` — хэшами исходных записей и таймлайна.

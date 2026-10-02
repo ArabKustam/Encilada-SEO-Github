@@ -21,7 +21,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "remotion": "^4.0.531",
-    "@repokit/presets": "workspace:*"
+    "@repokit/presets": "workspace:*",
+    "@repokit/readme": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

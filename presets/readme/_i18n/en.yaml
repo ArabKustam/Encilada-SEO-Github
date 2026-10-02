@@ -1,5 +1,6 @@
 # README headings and service phrases in English.
 headings:
+  stack: Tech stack
   problem: Problem
   solution: Solution
   features: Features

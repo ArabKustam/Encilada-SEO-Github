@@ -1,5 +1,6 @@
 # Заголовки и служебные фразы README на русском.
 headings:
+  stack: Технологии
   problem: Проблема
   solution: Решение
   features: Возможности

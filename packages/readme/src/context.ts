@@ -30,6 +30,8 @@ export interface Human {
   heroAlt?: string;
   team?: { name: string; role?: string; link?: string }[];
   roadmap?: string[];
+  /** Technologies repokit could not detect on its own. */
+  stack?: string[];
   /** Slots the author chose to leave out. */
   skip?: string[];
 }

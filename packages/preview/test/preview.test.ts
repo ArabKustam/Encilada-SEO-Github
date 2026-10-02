@@ -74,7 +74,7 @@ describe("preview server", () => {
   it("describes every slot of the chosen preset", async () => {
     const state = await (await fetch(`${server.url}/api/state?preset=compact`)).json();
     expect(state.plan.preset).toBe("compact");
-    expect(state.plan.slots.map((s: { id: string }) => s.id)).toEqual(["header", "features", "quickstart", "demo", "limitations", "license"]);
+    expect(state.plan.slots.map((s: { id: string }) => s.id)).toEqual(["header", "stack", "features", "quickstart", "demo", "limitations", "license"]);
     expect(state.presets).toHaveLength(3);
     expect(state.hasReadme).toBe(true);
   });

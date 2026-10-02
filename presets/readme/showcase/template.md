@@ -1,5 +1,6 @@
 {{header variant=centered}}
 {{hero}}
+{{stack}}
 {{problem}}
 {{solution}}
 {{features}}

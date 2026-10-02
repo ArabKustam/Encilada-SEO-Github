@@ -147,7 +147,7 @@ const el = (tag, props = {}, children = []) => {
   return node;
 };
 const STATUS = { filled: "готов", empty: "пусто", omitted: "пропущен", implemented: "реализовано", partial: "частично", mock: "заглушка", unverified: "не проверено" };
-const SLOT_NAMES = { header: "Шапка", hero: "Главное изображение", problem: "Проблема", solution: "Решение", features: "Возможности", demo: "Демо", architecture: "Архитектура", routes: "API и страницы", quickstart: "Быстрый старт", judges: "Для жюри", limitations: "Ограничения и планы", team: "Команда", license: "Лицензия" };
+const SLOT_NAMES = { header: "Шапка", hero: "Главное изображение", stack: "Технологии", problem: "Проблема", solution: "Решение", features: "Возможности", demo: "Демо", architecture: "Архитектура", routes: "API и страницы", quickstart: "Быстрый старт", judges: "Для жюри", limitations: "Ограничения и планы", team: "Команда", license: "Лицензия" };
 const megabytes = (bytes) => (bytes / 1024 / 1024).toFixed(2) + " МБ";
 
 async function load() {
@@ -247,6 +247,7 @@ const panes = {
       ...text("heroAlt", "Описание главного изображения", "alt-текст: что на нём видно", h.heroAlt),
       el("label", {}, ["Команда", el("small", { textContent: "имя, роль, ссылка" })]), team,
       el("button", { type: "button", className: "ghost", textContent: "Добавить участника", onclick: () => addMember() }),
+      ...text("stack", "Технологии сверх найденных", "через запятую; repokit сам находит их по зависимостям", (h.stack || []).join(", ")),
       ...area("roadmap", "Планы", "по одному пункту в строке", (h.roadmap || []).join("\n")),
       ...text("skip", "Не включать разделы", "через запятую: team, demo, judges …", (h.skip || []).join(", ")),
       el("div", { className: "actions" }, [el("button", { type: "submit", className: "primary", style: "margin-left:0", textContent: "Сохранить" }), el("span", { className: "status", id: "save-status" })]),
@@ -293,6 +294,7 @@ async function saveFields(event) {
     title: value("title"), tagline: value("tagline"), problem: value("problem"), solution: value("solution"),
     demoUrl: value("demoUrl"), videoUrl: value("videoUrl"), heroAlt: value("heroAlt"), team,
     roadmap: value("roadmap").split("\n").map((line) => line.trim()).filter(Boolean),
+    stack: value("stack").split(",").map((item) => item.trim()).filter(Boolean),
     skip: value("skip").split(",").map((item) => item.trim()).filter(Boolean),
   };
   const status = $("#save-status");

@@ -80,6 +80,14 @@ export function analyze(repo: string): ScanResult {
     ...PYTHON_FRAMEWORKS.filter(hasPyDep),
   ];
   const uses = (name: string) => frameworks.includes(name);
+  // Names only, as declared: enough to tell which technologies a project really depends on.
+  const requirementNames = pyManifests
+    .filter((f) => f.path.endsWith(".txt"))
+    .flatMap((f) => (read(f.path) ?? "").split(/\r?\n/))
+    .map((line) => line.trim().toLowerCase().match(/^([a-z0-9][a-z0-9._-]*)/)?.[1]);
+  const pyprojectNames = [...(read("pyproject.toml") ?? "").matchAll(/dependencies\s*=\s*\[([\s\S]*?)\]/g)]
+    .flatMap((block) => [...block[1].matchAll(/["']\s*([A-Za-z0-9][A-Za-z0-9._-]*)/g)].map((m) => m[1].toLowerCase()));
+  const dependencies = [...new Set([...Object.keys(nodeDeps), ...requirementNames, ...pyprojectNames].filter((n): n is string => Boolean(n)))].sort();
 
   // --- languages
   const languageStats = new Map<string, { files: number; bytes: number }>();
@@ -284,7 +292,7 @@ export function analyze(repo: string): ScanResult {
   return {
     schemaVersion: 1,
     treeSha256,
-    project: { name: pkg?.name ?? basename(repo), types, languages, frameworks, packageManager, commands },
+    project: { name: pkg?.name ?? basename(repo), types, languages, frameworks, dependencies, packageManager, commands },
     entrypoints,
     routes,
     models,

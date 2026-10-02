@@ -6,31 +6,90 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "title": { "type": "string", "maxLength": 80 },
-    "tagline": { "type": "string", "maxLength": 200 },
-    "problem": { "type": "string" },
-    "solution": { "type": "string" },
-    "demoUrl": { "type": "string", "pattern": "^https?://" },
-    "videoUrl": { "type": "string", "pattern": "^https?://" },
-    "heroAlt": { "type": "string", "maxLength": 300 },
+    "title": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "tagline": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "problem": {
+      "type": "string"
+    },
+    "solution": {
+      "type": "string"
+    },
+    "demoUrl": {
+      "type": "string",
+      "pattern": "^https?://"
+    },
+    "videoUrl": {
+      "type": "string",
+      "pattern": "^https?://"
+    },
+    "heroAlt": {
+      "type": "string",
+      "maxLength": 300
+    },
     "team": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "role": { "type": "string" },
-          "link": { "type": "string", "pattern": "^https?://" }
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string",
+            "pattern": "^https?://"
+          }
         }
       }
     },
-    "roadmap": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "roadmap": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "skip": {
       "type": "array",
-      "items": { "enum": ["hero", "problem", "solution", "features", "demo", "architecture", "routes", "quickstart", "judges", "limitations", "team", "license"] },
+      "items": {
+        "enum": [
+          "hero",
+          "stack",
+          "problem",
+          "solution",
+          "features",
+          "demo",
+          "architecture",
+          "routes",
+          "quickstart",
+          "judges",
+          "limitations",
+          "team",
+          "license"
+        ]
+      },
       "description": "Разделы, которые автор решил не включать"
+    },
+    "stack": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Технологии, которые repokit не определил сам; за их достоверность отвечает автор"
     }
   }
 }

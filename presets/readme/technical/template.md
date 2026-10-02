@@ -1,5 +1,6 @@
 {{header}}
 {{hero}}
+{{stack}}
 {{features}}
 {{architecture}}
 {{routes collapsible}}
