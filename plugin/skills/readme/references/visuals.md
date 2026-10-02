@@ -5,6 +5,26 @@ Read this before making screenshots, terminal recordings, demo GIFs, banners or 
 Everything here needs the media services: if a command answers with exit code 3 and mentions setup, ask the user to
 allow `repokit setup` (one-time, about 1 GB). External tools: a Chromium browser and `ffmpeg` (`repokit doctor`).
 
+## Plan first
+
+Run `repokit readme storyboard` and work from `.repokit/storyboard.md`. A visual gets into the README only if it answers
+a question a newcomer has, in this order: what is it, what can I do with it, how does the main thing look in use, what
+is mine in it. Rules the plan follows, and you should too when editing it:
+
+- **One picture at the top.** A still is sharper and lighter than a clip; use a clip up there only if the product makes
+  no sense without motion.
+- **One visual per capability, next to the text about it.** A heading, one or two sentences on what the user gets, then
+  the picture. Never a pile of media in a "gallery" or "demo" section with no text.
+- **A clip shows one action and its result**, eight seconds at most. Scrolling a long page counts as one action.
+  Motion for search, filters, schedules, players; a still for states such as a profile, statistics, settings.
+- **Never the same content twice in different wrapping.** Five 3D arrangements of the same pages are one picture and
+  four repeats. Sign-in forms and near-identical list pages are left out.
+- **Budget:** the top picture plus at most five more, about 15 MB in total. Prefer animated WebP to GIF for anything
+  with photos or gradients: GIF's 256 colours ruin them.
+- **No commentary about the media in the README.** Do not write that screenshots are real, that something was "added in
+  editing", how a clip was recorded, or which tool made it. Captions say what is on screen and why it matters to the
+  user. The only exception is a "demo data" label when the data shown is not real.
+
 ## Which visual, if any
 
 | Project | What helps | Command |
@@ -12,8 +32,10 @@ allow `repokit setup` (one-time, about 1 GB). External tools: a Chromium browser
 | Web app, site | 1–3 screenshots or a GIF of the main scenario | `capture screenshot`, `capture run` + `studio render` |
 | CLI, developer tool | the real output of the first command a user would run | `capture terminal -- <command>` |
 | Library, SDK, API | nothing — a code example does the job | — |
-| Several screens to show | a 3D scene made from screenshots | `studio scene gallery`, `studio scene make` |
-| "How it works" | architecture walk-through built from the code | `studio explain [--detail full]` |
+| Desktop and phone layouts | one still of both devices as the top picture | `studio scene make --template duo`, `studio still` |
+| A deck, a landing page, a social post | 3D scenes of several screens | `studio scene gallery`, `studio scene make` |
+| "How it works" in the README | a Mermaid diagram | `diagram architecture` |
+| "How it works" in a talk or in docs | architecture walk-through video built from the code | `studio explain [--detail full]` |
 | Top of the README, social preview | banner | `studio banner` |
 
 Do not add a picture for the sake of having one. Do not show the same thing twice: `repokit assets check` reports

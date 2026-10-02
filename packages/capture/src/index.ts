@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { Command } from "commander";
 import {
@@ -129,16 +129,23 @@ async function run(flags: ScenarioFlags): Promise<CommandResult<RunData | { plan
       const leadingGoto = "goto" in first;
       if (leadingGoto) await page.goto(new URL(first.goto, scenario.baseUrl).toString(), { waitUntil: "load" });
       recorder.start();
-      events = await runScenario({
-        page,
-        scenario: { ...scenario, steps: leadingGoto ? rest : scenario.steps },
-        viewport,
-        recorder,
-        onMark: async (name) => {
-          await recorder.still(shotPath(dir, name));
-          shots.push(shotPath(dir, name));
-        },
-      });
+      try {
+        events = await runScenario({
+          page,
+          scenario: { ...scenario, steps: leadingGoto ? rest : scenario.steps },
+          viewport,
+          recorder,
+          onMark: async (name) => {
+            await recorder.still(shotPath(dir, name));
+            shots.push(shotPath(dir, name));
+          },
+        });
+      } catch (error) {
+        // A failed step must not leave the frame loop running: it would keep the process alive for ever.
+        await recorder.abort();
+        rmSync(dir, { recursive: true, force: true });
+        throw error;
+      }
       if (leadingGoto) events.unshift({ t: 0, type: "nav", url: first.goto });
       duration = await recorder.finish("video.mp4");
       frames = recorder.frameCount;

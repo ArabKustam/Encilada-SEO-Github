@@ -1,6 +1,6 @@
 {
   "name": "repokit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Turns a repository's README into a clear presentation of the project: structure by project type, real screenshots and demos, examples from the code, checks of the first screen. Facts only — nothing is invented.",
   "author": {
     "name": "ArabKustam",

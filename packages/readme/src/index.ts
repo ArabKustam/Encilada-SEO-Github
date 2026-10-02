@@ -11,6 +11,7 @@ import { auditReadme, heroChecks, renderAudit, type AuditCheck } from "./audit.j
 import { buildReadme, type SlotResult } from "./build.js";
 import { extractExamples, type ExamplesDoc } from "./examples.js";
 import { fixReadme } from "./fix.js";
+import { planStoryboard, renderStoryboard, type Storyboard } from "./storyboard.js";
 import { isStyle, planLayout, presetFromLayout, type Layout } from "./layout.js";
 import { KIND_TITLES, STYLE_TITLES, STYLES, type ProjectKind, type Style } from "./profile.js";
 import {
@@ -26,6 +27,8 @@ export { auditReadme, heroChecks, LIMITS, themeProblem } from "./audit.js";
 export type { AuditCategory, AuditCheck } from "./audit.js";
 export { bestExample, extractExamples } from "./examples.js";
 export { fixReadme } from "./fix.js";
+export { planStoryboard, renderStoryboard } from "./storyboard.js";
+export type { Storyboard, StoryItem } from "./storyboard.js";
 export type { Example, ExamplesDoc } from "./examples.js";
 export { analyzeExisting, planLayout, presetFromLayout } from "./layout.js";
 export type { Layout, LayoutSection } from "./layout.js";
@@ -412,6 +415,27 @@ function audit(flags: AuditFlags, only: (checks: AuditCheck[]) => AuditCheck[] =
   };
 }
 
+function storyboard(flags: CommonFlags): CommandResult<Storyboard> {
+  const repo = resolveRepo(flags.repo);
+  const board = planStoryboard(loadContext(repo, loadOptions(repo)));
+  const visual: Record<string, string> = { clip: "ролик", screenshot: "кадр", terminal: "терминал", code: "код", diagram: "схема", none: "—" };
+  return {
+    data: board,
+    artifacts: [
+      writeArtifact(repo, "storyboard.json", json(board), "storyboard", flags.dryRun),
+      writeArtifact(repo, "storyboard.md", renderStoryboard(board), "storyboard-page", flags.dryRun),
+    ],
+    humanTodo: board.questions.map((text, index) => ({ id: `storyboard.question.${index}`, text })),
+    summary: [
+      `план презентации (${KIND_TITLES[board.projectType]}): главный кадр и показов ${board.tour.length}, не делаем ${board.skip.length}`,
+      `  ${visual[board.hero.visual].padEnd(9)} ${board.hero.title} — ${board.hero.reason}`,
+      ...board.tour.map((s, index) => `  ${visual[s.visual].padEnd(9)} ${index + 1}. ${s.title} — ${s.reason}`),
+      ...board.skip.map((s) => `  не делаем ${s.what} — ${s.reason}`),
+      `подробно, с командами: ${REPOKIT_DIR}/storyboard.md — покажите план автору до того, как что-то снимать`,
+    ],
+  };
+}
+
 function examplesExtract(flags: CommonFlags): CommandResult<ExamplesDoc> {
   const repo = resolveRepo(flags.repo);
   const files = new Set(listFiles(repo).files.map((f) => f.path));
@@ -490,6 +514,8 @@ export function registerReadme(program: Command): void {
     .action((flags: PlanFlags) => runCommand("readme", "layout", flags, () => layoutCommand(flags)));
   planFlags(readme.command("generate").description("то же, что plan: собрать черновик README"))
     .action((flags: PlanFlags) => runCommand("readme", "generate", flags, () => plan(flags)));
+  commonFlags(readme.command("storyboard").description("план презентации: что показать, чем и зачем, что не делать → .repokit/storyboard.md"))
+    .action((flags: CommonFlags) => runCommand("readme", "storyboard", flags, () => storyboard(flags)));
   commonFlags(readme.command("audit").description("оценить README по категориям: понятность, первый экран, визуалы, запуск, примеры, утверждения, оформление, файлы"))
     .option("--draft", "проверить черновик .repokit/readme.draft.md вместо README.md")
     .option("--fix", "исправить механические проблемы: уровни заголовков, лишние пустые строки, очень длинные блоки кода")

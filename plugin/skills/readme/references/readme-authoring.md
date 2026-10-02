@@ -34,6 +34,9 @@ running are never collapsed.
 
 ## Wording
 
+- Write about the product, never about the README or its media: no "below you can see", no "screenshots were taken
+  from the running app", no notes on how something was recorded or edited.
+
 - Start with what the project does. Not "Welcome to", not "This is a powerful modern solution".
 - No empty praise: powerful, revolutionary, next-generation, cutting-edge, seamless, game-changing, best-in-class,
   мощный, революционный, инновационный, уникальное решение.

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, posix } from "node:path";
 import { PNG } from "pngjs";
+import { isAnimatedImage } from "@repokit/core";
 import type { Context } from "./context.js";
 import type { Layout } from "./layout.js";
 import { checkReadme } from "./merge.js";
@@ -174,7 +175,7 @@ export function auditReadme(markdown: string, ctx: Context, layout: Layout): Aud
   const contentImages = images.filter((i) => !BADGE.test(i.raw));
   if (VISUAL_KINDS.has(kind)) {
     add("visuals", "present", contentImages.length > 0, contentImages.length > 0 ? `изображений: ${contentImages.length}` : "нет ни одного изображения интерфейса", { fix: "edit" });
-    const motion = MOTION.test(markdown);
+    const motion = MOTION.test(markdown) || local.some((i) => isAnimatedImage(join(ctx.repo, i.target.split(/[?#]/)[0])));
     add("visuals", "interaction", motion, motion ? "есть демо в движении" : "нет демонстрации главного действия (GIF или видео): repokit capture run + studio render", { fix: "edit" });
   } else if (kind === "cli" || kind === "dev-tool") {
     const shown = contentImages.length > 0 || lines.some((l) => l.inFence && /^\s*\$\s|^\s*>\s/.test(l.text));
@@ -186,7 +187,7 @@ export function auditReadme(markdown: string, ctx: Context, layout: Layout): Aud
     const file = join(ctx.repo, path);
     if (!existsSync(file)) continue;
     const size = statSync(file).size;
-    const limit = extname(path).toLowerCase() === ".gif" ? LIMITS.gifBytes : LIMITS.imageBytes;
+    const limit = isAnimatedImage(file) ? LIMITS.gifBytes : LIMITS.imageBytes;
     if (size > limit) heavy.push(`${path} — ${megabytes(size)} МБ`);
   }
   add("visuals", "weight", heavy.length === 0, heavy.length === 0 ? "изображения не тяжёлые" : `тяжёлые изображения: ${heavy.join(", ")} — repokit assets optimize`, { fix: "auto" });

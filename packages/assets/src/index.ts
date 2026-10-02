@@ -4,7 +4,7 @@ import type { Command } from "commander";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 import {
-  commonFlags, ExitCode, fileSha256, listFiles, readManifest, readText, recordMedia, REPOKIT_DIR, requireTool, resolveRepo, runCommand, runTool, UsageError,
+  commonFlags, ExitCode, fileSha256, isAnimatedImage, listFiles, readManifest, readText, recordMedia, REPOKIT_DIR, requireTool, resolveRepo, runCommand, runTool, UsageError,
   type CommandResult, type CommonFlags, type MediaEntry,
 } from "@repokit/core";
 
@@ -55,6 +55,7 @@ function resolveTarget(document: string, target: string): string {
 
 /** What media the repository has and which documents use it. */
 export function inventory(repo: string): Inventory {
+  currentRepo = repo;
   const files = listFiles(repo).files;
   const paths = new Set(files.map((f) => f.path));
   const references = new Map<string, Reference[]>();
@@ -99,7 +100,9 @@ export function normalizedName(name: string): string {
 }
 
 const badName = (path: string) => posix.basename(path) !== normalizedName(posix.basename(path));
-const isHeavy = (asset: { path: string; bytes: number }) => asset.bytes > (posix.extname(asset.path).toLowerCase() === ".gif" ? LIMITS.gifBytes : LIMITS.imageBytes);
+/** Set by each command to the repository it works on, so that a file can be looked at when its name is not enough. */
+let currentRepo = ".";
+const isHeavy = (asset: { path: string; bytes: number }) => asset.bytes > (isAnimatedImage(join(currentRepo, asset.path)) ? LIMITS.gifBytes : LIMITS.imageBytes);
 const unusedOf = (inv: Inventory) => inv.assets.filter((a) => a.references.length === 0 && ASSET_DIRS.test(a.path));
 
 export interface Duplicate {
@@ -221,6 +224,8 @@ async function optimize(flags: CommonFlags & { maxWidth?: string }): Promise<Com
     const ext = posix.extname(asset.path).toLowerCase();
     const gif = ext === ".gif";
     if (!gif && !RASTER.has(ext)) continue;
+    // Re-encoding an animated WebP here would keep only its first frame.
+    if (!gif && isAnimatedImage(join(repo, asset.path))) continue;
     const file = join(repo, asset.path);
     const width = await imageWidth(file);
     const limit = gif ? LIMITS.gifWidth : maxWidth;

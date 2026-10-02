@@ -1,5 +1,6 @@
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findSystemBrowser, NeedsHumanError, UsageError } from "@repokit/core";
@@ -26,12 +27,25 @@ export interface RenderJob {
   gl?: GlBackend;
 }
 
+/** A port nobody is listening on, chosen by the operating system. */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as { port: number };
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 interface Session {
   serveUrl: string;
   composition: Awaited<ReturnType<typeof import("@remotion/renderer").selectComposition>>;
   browser: {
     browserExecutable: string;
     chromeMode: "chrome-for-testing";
+    port: number;
     logLevel: "error";
     chromiumOptions?: { gl: GlBackend };
   };
@@ -57,6 +71,9 @@ async function withBundle<T>(job: RenderJob, body: (session: Session) => Promise
     const browser: Session["browser"] = {
       browserExecutable,
       chromeMode: "chrome-for-testing",
+      // The renderer serves its bundle over HTTP. Its default port is 3000 — the very port an application
+      // being recorded is likely to use, and a recording must never mistake one for the other.
+      port: await freePort(),
       logLevel: "error",
       ...(job.gl ? { chromiumOptions: { gl: job.gl } } : {}),
     };

@@ -57,6 +57,14 @@ export function recordMedia(repo: string, entries: MediaEntry[]): void {
   writeFileSync(manifestPath(repo), JSON.stringify(manifest, null, 2) + "\n");
 }
 
+/** Is this file a moving picture: a GIF, or a WebP with an animation chunk? */
+export function isAnimatedImage(abs: string): boolean {
+  if (/\.gif$/i.test(abs)) return true;
+  if (!/\.webp$/i.test(abs) || !existsSync(abs)) return false;
+  // An animated WebP declares itself with an ANIM chunk right after the header.
+  return readFileSync(abs).subarray(0, 4096).includes("ANIM");
+}
+
 export function fileSha256(abs: string): string {
   return sha256(readFileSync(abs));
 }

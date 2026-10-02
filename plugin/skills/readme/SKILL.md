@@ -49,8 +49,10 @@ Pick the steps the request needs; this is the full path for "make this README go
 3. **Plan** — `plan_readme`. Each section has a priority (`must`, `should`, `optional`, `omit`) and a reason. To change
    the plan, edit `.repokit/readme.layout.json` rather than working around it. A section marked empty needs data from
    the user (`.repokit/readme.human.yaml`: tagline, problem, solution, team) — ask, do not fill it in yourself.
-4. **Decide on visuals** — only where they help: see [references/visuals.md](references/visuals.md). Anything that runs
-   the user's project (`capture_demo`, `repokit capture …`) is agreed with the user first.
+4. **Plan the visuals before making any** — `repokit readme storyboard` writes `.repokit/storyboard.md`: the one picture
+   at the top, up to five things to show in the order a newcomer meets them, how to make each, and what is deliberately
+   left out. Read it against the code, correct it, and show it to the user. Make only what is in the agreed plan: see
+   [references/visuals.md](references/visuals.md). Anything that runs the user's project is agreed with the user first.
 5. **Write** — in `improve` mode edit README.md by hand, guided by the audit. Otherwise `generate_presentation`
    without `apply` to get the diff, show it, and only then `apply: true`. Wording rules:
    [references/readme-authoring.md](references/readme-authoring.md).

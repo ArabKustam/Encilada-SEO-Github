@@ -20153,7 +20153,7 @@ function redact(text, env = process.env) {
 }
 
 // packages/core/dist/envelope.js
-var VERSION = "0.2.1";
+var VERSION = "0.2.2";
 function commonFlags(command) {
   return command.option("--repo <path>", "целевой репозиторий", ".").option("--json", "один JSON-документ в stdout").option("--dry-run", "ничего не записывать").option("--verbose", "подробный вывод в stderr");
 }
@@ -20405,6 +20405,13 @@ function recordMedia(repo, entries) {
   assertValid("media-manifest", manifest);
   mkdirSync3(dirname2(manifestPath(repo)), { recursive: true });
   writeFileSync2(manifestPath(repo), JSON.stringify(manifest, null, 2) + "\n");
+}
+function isAnimatedImage(abs) {
+  if (/\.gif$/i.test(abs))
+    return true;
+  if (!/\.webp$/i.test(abs) || !existsSync3(abs))
+    return false;
+  return readFileSync3(abs).subarray(0, 4096).includes("ANIM");
 }
 function fileSha256(abs) {
   return sha256(readFileSync3(abs));
@@ -20691,6 +20698,7 @@ function resolveTarget(document, target) {
   return posix.normalize(posix.join(posix.dirname(document), path2));
 }
 function inventory(repo) {
+  currentRepo = repo;
   const files = listFiles(repo).files;
   const paths = new Set(files.map((f) => f.path));
   const references = /* @__PURE__ */ new Map();
@@ -20733,7 +20741,8 @@ function normalizedName(name) {
   return `${stem || "file"}${ext.toLowerCase()}`;
 }
 var badName = (path2) => posix.basename(path2) !== normalizedName(posix.basename(path2));
-var isHeavy = (asset) => asset.bytes > (posix.extname(asset.path).toLowerCase() === ".gif" ? LIMITS.gifBytes : LIMITS.imageBytes);
+var currentRepo = ".";
+var isHeavy = (asset) => asset.bytes > (isAnimatedImage(join7(currentRepo, asset.path)) ? LIMITS.gifBytes : LIMITS.imageBytes);
 var unusedOf = (inv) => inv.assets.filter((a) => a.references.length === 0 && ASSET_DIRS.test(a.path));
 function duplicates(repo, paths) {
   const found = [];
@@ -20825,6 +20834,8 @@ async function optimize(flags) {
     const ext = posix.extname(asset.path).toLowerCase();
     const gif = ext === ".gif";
     if (!gif && !RASTER.has(ext))
+      continue;
+    if (!gif && isAnimatedImage(join7(repo, asset.path)))
       continue;
     const file = join7(repo, asset.path);
     const width = await imageWidth(file);
@@ -22859,7 +22870,7 @@ function auditReadme(markdown, ctx, layout) {
   const contentImages = images.filter((i) => !BADGE.test(i.raw));
   if (VISUAL_KINDS.has(kind)) {
     add("visuals", "present", contentImages.length > 0, contentImages.length > 0 ? `изображений: ${contentImages.length}` : "нет ни одного изображения интерфейса", { fix: "edit" });
-    const motion = MOTION.test(markdown);
+    const motion = MOTION.test(markdown) || local.some((i) => isAnimatedImage(join12(ctx.repo, i.target.split(/[?#]/)[0])));
     add("visuals", "interaction", motion, motion ? "есть демо в движении" : "нет демонстрации главного действия (GIF или видео): repokit capture run + studio render", { fix: "edit" });
   } else if (kind === "cli" || kind === "dev-tool") {
     const shown = contentImages.length > 0 || lines.some((l) => l.inFence && /^\s*\$\s|^\s*>\s/.test(l.text));
@@ -22872,7 +22883,7 @@ function auditReadme(markdown, ctx, layout) {
     if (!existsSync10(file))
       continue;
     const size = statSync3(file).size;
-    const limit = extname(path2).toLowerCase() === ".gif" ? LIMITS2.gifBytes : LIMITS2.imageBytes;
+    const limit = isAnimatedImage(file) ? LIMITS2.gifBytes : LIMITS2.imageBytes;
     if (size > limit)
       heavy.push(`${path2} — ${megabytes2(size)} МБ`);
   }
@@ -24195,6 +24206,269 @@ function fixReadme(markdown, detailsLabel) {
   return { markdown: compact.join(eol), fixes };
 }
 
+// packages/readme/dist/storyboard.js
+import { posix as posix8 } from "node:path";
+var BUDGET = { items: 5, megabytes: 15, clipSeconds: 8 };
+var INTERFACE_KINDS = /* @__PURE__ */ new Set(["web-app", "mobile-app", "desktop-app", "game", "template"]);
+var TERMINAL_KINDS = /* @__PURE__ */ new Set(["cli", "dev-tool", "ai-agent"]);
+var ROLE_BY_NAME = [
+  [/^(index|home|main|landing)$/i, "home"],
+  [/login|signin|sign-in|register|signup|sign-up|auth|password|reset/i, "auth"],
+  [/profile|account|dashboard|cabinet|library|history|favorites|my/i, "personal"],
+  [/settings|preferences|config/i, "settings"],
+  [/search|find/i, "search"],
+  [/detail|item|view|watch|product|post|article|\[.*\]|:id/i, "detail"]
+];
+var ROLE_TITLES = {
+  home: "Главная",
+  catalog: "Каталог",
+  detail: "Страница объекта",
+  search: "Поиск",
+  personal: "Личный раздел",
+  auth: "Вход и регистрация",
+  settings: "Настройки",
+  other: "Страница",
+  content: "Возможность"
+};
+var roleOf = (name) => ROLE_BY_NAME.find(([pattern]) => pattern.test(name))?.[1] ?? "catalog";
+function pagesOf(ctx) {
+  const pages = [];
+  for (const file of [...ctx.files].sort()) {
+    if (!/\.html?$/i.test(file) || file.split("/").length > 2 || /^(node_modules|dist|build|coverage|docs|tests?|examples?)\//.test(file))
+      continue;
+    const name = posix8.basename(file).replace(/\.html?$/i, "");
+    pages.push({ file, url: name === "index" ? "/" : `/${posix8.basename(file)}`, role: roleOf(name) });
+  }
+  for (const route of ctx.scan.routes) {
+    if (route.framework !== "next" && route.framework !== "static")
+      continue;
+    if (pages.some((p) => p.url === route.path))
+      continue;
+    pages.push({ file: route.file, url: route.path, role: route.path === "/" ? "home" : roleOf(route.path) });
+  }
+  return pages;
+}
+function capabilitiesOf(ctx) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const route of ctx.scan.routes) {
+    if (route.framework === "static" || route.framework === "next")
+      continue;
+    const parts = route.path.split("/").filter((p) => p && !/^(api|v\d+)$/i.test(p) && !/^[:{[<*]/.test(p));
+    if (parts.length === 0)
+      continue;
+    const key = parts.slice(0, parts[0].length <= 5 && parts.length > 1 ? 2 : 1).join("/");
+    groups.set(key, [...groups.get(key) ?? [], `${route.method} ${route.path} (${route.file}:${route.line})`]);
+  }
+  return [...groups.entries()].map(([name, routes]) => {
+    const role = /^(user|users|account|me|profile)(\/|$)/i.test(name) ? "personal" : roleOf(name.replace(/\//g, "-"));
+    return { name, routes, role: role === "catalog" ? "content" : role };
+  });
+}
+var responsive = (ctx, pages) => pages.some((p) => /\.html?$/i.test(p.file) && /<meta[^>]+name=["']viewport["']/i.test(readText(ctx.repo, p.file) ?? ""));
+var clip = (id, url) => [
+  `сценарий: .repokit/storyboard/${id}.scenario.yaml — goto ${url}, затем одно действие и его результат (не дольше ${BUDGET.clipSeconds} с)`,
+  `repokit capture run --scenario .repokit/storyboard/${id}.scenario.yaml`,
+  `repokit studio render --capture latest --style dark --out docs/media/${id}.mp4 --webp`
+];
+var shot = (id, url) => [`repokit capture screenshot --url <адрес>${url} --out docs/media/${id}.png`];
+function planStoryboard(ctx) {
+  const kind = ctx.profile.kind;
+  const skip = [];
+  const questions = [];
+  const tour = [];
+  const example = bestExample(ctx.examples);
+  const graph = groupGraph(buildGraph(ctx.repo, ctx.scan, ctx.files));
+  let hero;
+  if (INTERFACE_KINDS.has(kind)) {
+    const pages = pagesOf(ctx);
+    const capabilities = capabilitiesOf(ctx);
+    const home = pages.find((p) => p.role === "home") ?? pages[0];
+    const phone = responsive(ctx, pages);
+    hero = {
+      id: "hero",
+      title: "Главный экран",
+      evidence: home ? [home.file] : [],
+      visual: "screenshot",
+      reason: phone ? "первое, что видит посетитель: один чёткий кадр продукта. Страницы адаптированы под телефон (viewport), поэтому — ноутбук и телефон рядом: сразу видно и продукт, и то, что он работает на обоих" : "первое, что видит посетитель: один чёткий кадр главного экрана. Неподвижная картинка резче и легче ролика",
+      how: phone ? [`repokit capture shots --scenario <сценарий с mark на главном экране> --sizes desktop,mobile`, "repokit studio scene make --template duo --pages <desktop.png>,<mobile.png> --out .repokit/hero.scene.json", "repokit studio still --scene .repokit/hero.scene.json --at 2 --width 1600 --out docs/media/hero.png"] : shot("hero", home?.url ?? "/"),
+      say: ["что это за продукт и для кого — одной фразой над картинкой"]
+    };
+    const add = (item) => {
+      if (tour.length < BUDGET.items)
+        tour.push(item);
+      else
+        skip.push({ what: item.title, reason: `сверх бюджета в ${BUDGET.items} показов: README показывает главное, остальное — в docs/ или в свёрнутом блоке` });
+    };
+    if (home) {
+      add({
+        id: "browse",
+        title: "Что на главной",
+        evidence: [home.file],
+        visual: "clip",
+        reason: "с этого начинается знакомство: видно, из чего состоит главный экран и как по нему двигаться",
+        how: clip("browse", home.url),
+        say: ["что пользователь находит на главном экране", "чем можно управлять прямо здесь (переключатели, подборки)"]
+      });
+    }
+    const searchProof = [...ctx.files].filter((f) => /\.(js|ts|jsx|tsx|html|vue|svelte)$/.test(f) && !/node_modules|\.test\.|(^|\/)tests?\//.test(f)).find((f) => /search[-_]?input|type=["']search["']|placeholder=["'][^"']*(search|поиск)/i.test(readText(ctx.repo, f) ?? ""));
+    if (searchProof || capabilities.some((c) => c.role === "search")) {
+      add({
+        id: "search",
+        title: "Поиск",
+        evidence: [searchProof ?? capabilities.find((c) => c.role === "search").routes[0]],
+        visual: "clip",
+        reason: "поиск понятен только в движении: ввод запроса и появление результатов",
+        how: clip("search", home?.url ?? "/"),
+        say: ["по чему ищет", "что происходит при выборе результата"]
+      });
+    }
+    const detail = pages.find((p) => p.role === "detail");
+    if (detail) {
+      add({
+        id: "detail",
+        title: ROLE_TITLES.detail,
+        evidence: [detail.file, ...capabilities.filter((c) => /comment|review|rate|rating/i.test(c.name)).flatMap((c) => c.routes.slice(0, 2))],
+        visual: "clip",
+        reason: "страница длиннее экрана: прокрутка показывает, что на ней есть, одним роликом вместо трёх скриншотов",
+        how: clip("detail", `${detail.url}?<параметры конкретного объекта>`),
+        say: ["что пользователь узнаёт и что может сделать на этой странице"]
+      });
+    }
+    const plumbing = /comment|review|rate|rating|tmdb|proxy|fanart|image|static|health/i;
+    const own = capabilities.filter((c) => c.role === "content" && !plumbing.test(c.name));
+    const pageOf = (capability) => pages.find((p) => p.role !== "home" && capability.name.split("/").some((part) => part.length > 3 && posix8.basename(p.file).toLowerCase().includes(part.toLowerCase())));
+    for (const capability of own.filter((c) => pageOf(c))) {
+      const page = pageOf(capability);
+      const id = capability.name.replace(/[^a-z0-9]+/gi, "-");
+      add({
+        id,
+        title: `${ROLE_TITLES.content}: ${capability.name}`,
+        evidence: [...capability.routes.slice(0, 3), page.file],
+        visual: "clip",
+        reason: `у возможности есть своя страница (${page.file}) и свой API: это отдельная часть продукта, а не вариант каталога`,
+        how: clip(id, page.url),
+        say: ["что это даёт пользователю", "чем эта страница отличается от остальных"]
+      });
+    }
+    const unplaced = own.filter((c) => !pageOf(c));
+    if (unplaced.length)
+      skip.push({ what: `отдельные показы для ${unplaced.map((c) => c.name).join(", ")}`, reason: "у этих эндпоинтов нет своей страницы: они работают внутри других экранов и упоминаются в списке возможностей" });
+    const personal = [...pages.filter((p) => p.role === "personal"), ...capabilities.filter((c) => c.role === "personal")];
+    if (personal.length > 0) {
+      add({
+        id: "personal",
+        title: ROLE_TITLES.personal,
+        evidence: personal.flatMap((p) => "routes" in p ? p.routes.slice(0, 2) : [p.file]).slice(0, 5),
+        visual: "screenshot",
+        reason: "личный раздел — это состояние, а не действие: одного кадра с заполненными данными достаточно",
+        how: ["нужен тестовый аккаунт с данными: создайте его сами или дайте storageState — repokit не входит под настоящим аккаунтом", ...shot("personal", "<адрес личного раздела>")],
+        say: ["что хранится за пользователем", "что он видит о себе"]
+      });
+      questions.push("Для кадра личного раздела нужен тестовый аккаунт с данными (или уже снятый скриншот). Есть ли он?");
+    }
+    const auth = pages.filter((p) => p.role === "auth");
+    if (auth.length)
+      skip.push({ what: `${auth.map((p) => p.file).join(", ")}`, reason: "форма входа одинакова у всех и ничего не говорит о продукте" });
+    const shown = new Set(tour.flatMap((item) => item.evidence));
+    const catalogs = pages.filter((p) => p.role === "catalog" && !shown.has(p.file));
+    if (catalogs.length > 1)
+      skip.push({ what: catalogs.map((p) => p.file).join(", "), reason: "страницы одного типа выглядят одинаково: отдельный кадр каждой — повтор уже показанного" });
+    skip.push({ what: "несколько 3D-постановок одних и тех же страниц (карусель, куб, стопка…)", reason: "это одна и та же информация в разной обёртке; постановка нужна максимум одна — в главном кадре" });
+    skip.push({ what: "видеоразбор архитектуры в README", reason: `схема из ${graph.nodes.length} блоков читается с одного взгляда как диаграмма Mermaid; ролик на полминуты ради неё — шум. Он уместен в docs/ или в презентации` });
+    if (ctx.human.demoUrl ?? ctx.deployment?.url)
+      skip.push({ what: "длинное обзорное видео", reason: "есть работающая версия: ссылка на неё убедительнее любого ролика" });
+    else
+      questions.push("Работающей версии в интернете нет. Если она появится, ссылка на неё должна стоять первой — раньше любых роликов.");
+  } else if (TERMINAL_KINDS.has(kind)) {
+    const run4 = ctx.scan.project.commands.run;
+    hero = {
+      id: "hero",
+      title: "Инструмент в работе",
+      evidence: ctx.scan.entrypoints.slice(0, 2).map((e) => e.file),
+      visual: "terminal",
+      reason: "у инструмента командной строки интерфейс — это его вывод: один настоящий запуск говорит больше описания",
+      how: [`repokit capture terminal -- ${run4 ? run4.replace(/\s--help$/, " <типичные аргументы>") : "<команда, которую пользователь запустит первой>"}`],
+      say: ["что делает инструмент — одной фразой", "какую задачу решает показанная команда"]
+    };
+    const commands = ctx.examples.commands.slice(0, 3);
+    for (const command of commands) {
+      tour.push({
+        id: `cmd-${command.command.split(/\s/)[0]}`,
+        title: `Команда ${command.command}`,
+        evidence: [`${command.file}:${command.line}`],
+        visual: "code",
+        reason: "команду показывают блоком кода с её настоящим выводом: его можно скопировать",
+        how: [`repokit capture terminal --out docs/assets/${command.command.split(/\s/)[0]}.svg -- <команда>  # поле text в ответе — тот же вывод для блока кода`],
+        say: ["когда эта команда нужна"]
+      });
+    }
+    if (ctx.examples.commands.length > 3)
+      skip.push({ what: `остальные команды (${ctx.examples.commands.length - 3})`, reason: "полный список — таблицей в разделе «Команды», а не картинками" });
+    skip.push({ what: "скриншоты и 3D-сцены", reason: "у проекта нет графического интерфейса" });
+    questions.push("Какую команду пользователь запускает первой и с какими аргументами? Запись делается с неё.");
+  } else {
+    hero = {
+      id: "hero",
+      title: "Минимальный пример",
+      evidence: example ? [`${example.file}:${example.lines[0]}–${example.lines[1]}`] : [],
+      visual: example ? "code" : "none",
+      reason: example ? "библиотеку показывает код: самый короткий работающий пример в начале README" : "примера использования в репозитории нет — сначала его нужно написать и проверить, что он запускается",
+      how: example ? ["repokit examples extract", "repokit readme plan"] : ["добавьте файл в examples/ и запустите его"],
+      say: ["какую задачу решает пример", "что получится на выходе"]
+    };
+    skip.push({ what: "скриншоты, GIF и 3D-сцены", reason: `для проекта типа «${KIND_TITLES[kind]}» картинка не заменяет пример кода` });
+    if (!example)
+      questions.push("В репозитории нет примера использования. Какой сценарий самый типичный?");
+  }
+  if (graph.nodes.length >= 3) {
+    tour.push({
+      id: "architecture",
+      title: "Как устроено",
+      evidence: graph.nodes.map((n) => n.file),
+      visual: "diagram",
+      reason: `${graph.nodes.length} связанных блоков: схема помогает понять, куда смотреть в коде`,
+      how: ["repokit diagram architecture"],
+      say: ["из каких частей состоит проект и кто к кому обращается — два-три предложения"]
+    });
+  }
+  return { schemaVersion: 1, projectType: kind, hero, tour, skip, budget: BUDGET, questions };
+}
+var VISUAL_TITLES = { clip: "ролик", screenshot: "кадр", terminal: "запись терминала", code: "блок кода", diagram: "схема", none: "ничего" };
+function renderStoryboard(board) {
+  const item = (s, index) => [
+    `### ${index === void 0 ? "" : `${index + 1}. `}${s.title} — ${VISUAL_TITLES[s.visual]}`,
+    "",
+    `Зачем: ${s.reason}.`,
+    "",
+    s.evidence.length ? `Основание: ${s.evidence.map((e) => `\`${e}\``).join(", ")}` : "",
+    "",
+    "Что сказать рядом:",
+    ...s.say.map((line) => `- ${line}`),
+    "",
+    "Как сделать:",
+    ...s.how.map((line) => `- \`${line}\``),
+    ""
+  ].filter((line, i, all) => !(line === "" && all[i - 1] === ""));
+  return [
+    `# План презентации — ${KIND_TITLES[board.projectType]}`,
+    "",
+    `Бюджет: главный кадр и не больше ${board.budget.items} показов; ролик — до ${board.budget.clipSeconds} с, одно действие; всё медиа — до ${board.budget.megabytes} МБ.`,
+    "Рядом с каждой картинкой — одна-две фразы о том, что на ней и зачем это пользователю. Без пояснений о том, как картинка сделана.",
+    "",
+    "## Главный кадр",
+    "",
+    ...item(board.hero),
+    "## Показы по порядку",
+    "",
+    ...board.tour.flatMap((s, index) => item(s, index)),
+    "## Не делаем",
+    "",
+    ...board.skip.map((s) => `- **${s.what}** — ${s.reason}.`),
+    "",
+    ...board.questions.length ? ["## Вопросы к автору", "", ...board.questions.map((q) => `- ${q}`), ""] : []
+  ].join("\n");
+}
+
 // packages/readme/dist/layout.js
 var SUBSTANTIAL = { lines: 60, sections: 4 };
 var COLLAPSE = { configuration: 8, routes: 10, commands: 14 };
@@ -24648,6 +24922,26 @@ function audit2(flags, only = (c) => c) {
     ]
   };
 }
+function storyboard(flags) {
+  const repo = resolveRepo(flags.repo);
+  const board = planStoryboard(loadContext(repo, loadOptions(repo)));
+  const visual = { clip: "ролик", screenshot: "кадр", terminal: "терминал", code: "код", diagram: "схема", none: "—" };
+  return {
+    data: board,
+    artifacts: [
+      writeArtifact(repo, "storyboard.json", json3(board), "storyboard", flags.dryRun),
+      writeArtifact(repo, "storyboard.md", renderStoryboard(board), "storyboard-page", flags.dryRun)
+    ],
+    humanTodo: board.questions.map((text, index) => ({ id: `storyboard.question.${index}`, text })),
+    summary: [
+      `план презентации (${KIND_TITLES[board.projectType]}): главный кадр и показов ${board.tour.length}, не делаем ${board.skip.length}`,
+      `  ${visual[board.hero.visual].padEnd(9)} ${board.hero.title} — ${board.hero.reason}`,
+      ...board.tour.map((s, index) => `  ${visual[s.visual].padEnd(9)} ${index + 1}. ${s.title} — ${s.reason}`),
+      ...board.skip.map((s) => `  не делаем ${s.what} — ${s.reason}`),
+      `подробно, с командами: ${REPOKIT_DIR}/storyboard.md — покажите план автору до того, как что-то снимать`
+    ]
+  };
+}
 function examplesExtract(flags) {
   const repo = resolveRepo(flags.repo);
   const files = new Set(listFiles(repo).files.map((f) => f.path));
@@ -24702,6 +24996,7 @@ function registerReadme(program3) {
   planFlags(readme.command("plan").description("собрать черновик README и показать, чем заполнен каждый раздел")).action((flags) => runCommand("readme", "plan", flags, () => plan2(flags)));
   planFlags(readme.command("layout").description(`определить тип проекта и спланировать структуру README → .repokit/${LAYOUT_FILE}`)).action((flags) => runCommand("readme", "layout", flags, () => layoutCommand(flags)));
   planFlags(readme.command("generate").description("то же, что plan: собрать черновик README")).action((flags) => runCommand("readme", "generate", flags, () => plan2(flags)));
+  commonFlags(readme.command("storyboard").description("план презентации: что показать, чем и зачем, что не делать → .repokit/storyboard.md")).action((flags) => runCommand("readme", "storyboard", flags, () => storyboard(flags)));
   commonFlags(readme.command("audit").description("оценить README по категориям: понятность, первый экран, визуалы, запуск, примеры, утверждения, оформление, файлы")).option("--draft", "проверить черновик .repokit/readme.draft.md вместо README.md").option("--fix", "исправить механические проблемы: уровни заголовков, лишние пустые строки, очень длинные блоки кода").action((flags) => runCommand("readme", "audit", flags, () => audit2(flags)));
   commonFlags(readme.command("hero-check").description("проверить первый экран README: что это, для кого, что делать дальше")).option("--draft", "проверить черновик .repokit/readme.draft.md вместо README.md").action((flags) => runCommand("readme", "hero-check", flags, () => audit2(flags, heroChecks)));
   planFlags(readme.command("apply").description("записать README.md; --dry-run показывает diff")).option("--regenerate", "заменить существующий содержательный README, написанный не repokit").action((flags) => runCommand("readme", "apply", flags, () => apply2(flags)));
@@ -25087,7 +25382,7 @@ function scanForHiddenText(file, text) {
 
 // packages/verify/dist/index.js
 var MEGABYTE = 1024 * 1024;
-var BUDGET = { gif: 8 * MEGABYTE, image: 5 * MEGABYTE, fileWarn: 25 * MEGABYTE, fileFail: 95 * MEGABYTE };
+var BUDGET2 = { gif: 8 * MEGABYTE, image: 5 * MEGABYTE, fileWarn: 25 * MEGABYTE, fileFail: 95 * MEGABYTE };
 var IMAGE_EXT = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
 var LINK_TIMEOUT_MS = 15e3;
 var MAX_LISTED = 20;
@@ -25199,13 +25494,13 @@ async function verifyRepository(repo, flags) {
     add("hidden-text", "Нет скрытого текста и инструкций для автоматических проверяющих", hidden.length ? "fail" : "pass", hidden);
     const junk = files.map((f) => f.path).filter((p) => /(^|\/)(node_modules|__pycache__|\.venv|\.pytest_cache)\//.test(p) || /(^|\/)(\.env|\.DS_Store|Thumbs\.db)$/.test(p) || /\.(pyc|log)$/.test(p) || p.startsWith(`${REPOKIT_DIR}/`));
     add("junk", "Нет служебных файлов", junk.length ? "fail" : "pass", junk);
-    const huge = files.filter((f) => f.size >= BUDGET.fileFail).map((f) => `${f.path} — ${(f.size / MEGABYTE).toFixed(1)} МБ (GitHub не примет файл больше 100 МБ)`);
-    const large = files.filter((f) => f.size >= BUDGET.fileWarn && f.size < BUDGET.fileFail).map((f) => `${f.path} — ${(f.size / MEGABYTE).toFixed(1)} МБ`);
+    const huge = files.filter((f) => f.size >= BUDGET2.fileFail).map((f) => `${f.path} — ${(f.size / MEGABYTE).toFixed(1)} МБ (GitHub не примет файл больше 100 МБ)`);
+    const large = files.filter((f) => f.size >= BUDGET2.fileWarn && f.size < BUDGET2.fileFail).map((f) => `${f.path} — ${(f.size / MEGABYTE).toFixed(1)} МБ`);
     add("large-files", "Нет слишком тяжёлых файлов", huge.length ? "fail" : large.length ? "warn" : "pass", [...huge, ...large]);
     const referenced = [...new Set([...readme.matchAll(/(?:src|srcset)="([^"\s]+)|!\[[^\]]*\]\(([^)\s]+)/g)].map((m) => m[1] ?? m[2]))].filter((p) => !/^https?:/.test(p) && IMAGE_EXT.has(extname2(p).toLowerCase()) && existsSync16(join18(dir, p)));
     const overBudget = referenced.flatMap((path2) => {
       const size = statSync4(join18(dir, path2)).size;
-      const limit = extname2(path2).toLowerCase() === ".gif" ? BUDGET.gif : BUDGET.image;
+      const limit = extname2(path2).toLowerCase() === ".gif" ? BUDGET2.gif : BUDGET2.image;
       return size > limit ? [`${path2} — ${(size / MEGABYTE).toFixed(1)} МБ при бюджете ${limit / MEGABYTE} МБ`] : [];
     });
     add("media-budget", "Медиа в README укладывается в бюджет", overBudget.length ? "fail" : "pass", overBudget.length ? overBudget : [`файлов: ${referenced.length}`]);

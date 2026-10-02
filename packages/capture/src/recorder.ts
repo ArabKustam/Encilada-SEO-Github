@@ -68,7 +68,11 @@ export class FrameRecorder {
       while (this.running) {
         const requested = this.now();
         const shot = await this.screenshot("jpeg");
-        if (!shot) continue;
+        if (!shot) {
+          // Nothing came back: give the browser a moment instead of asking again at once.
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          continue;
+        }
         const { data } = shot;
         // The frame shows the page at some moment between request and response.
         const t = this.frames.length === 0 ? 0 : (requested + this.now()) / 2;
@@ -84,6 +88,12 @@ export class FrameRecorder {
     const shot = (await this.screenshot("png")) ?? (await this.screenshot("png"));
     if (!shot) throw new Error(`Браузер не отдал кадр для ${file}`);
     writeFileSync(file, Buffer.from(shot.data, "base64"));
+  }
+
+  /** Stop taking frames without producing a video: the scenario failed, and the process must be able to exit. */
+  async abort(): Promise<void> {
+    this.running = false;
+    await this.loop.catch(() => undefined);
   }
 
   /** Stop recording and encode the frames into a constant-frame-rate MP4. Returns duration in seconds. */
