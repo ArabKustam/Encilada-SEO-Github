@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
-import { ExitCode, say, VERSION } from "@repokit/core";
+import { commonFlags, ExitCode, runCommand, say, VERSION, type CommonFlags } from "@repokit/core";
 import { registerAssets } from "@repokit/assets";
 import { registerBrief } from "@repokit/brief";
 import { registerCapture } from "@repokit/capture";
@@ -10,7 +10,7 @@ import { registerReadme } from "@repokit/readme";
 import { registerRelease } from "@repokit/release";
 import { registerScan } from "@repokit/scan";
 import { registerStudio } from "@repokit/studio";
-import { registerVerify } from "@repokit/verify";
+import { QUICKSTART_DESCRIPTION, quickstartCommand, registerVerify } from "@repokit/verify";
 import { registerDoctor } from "./doctor.js";
 import { registerRun } from "./run.js";
 
@@ -36,6 +36,11 @@ registerDeploy(program);
 registerRelease(program);
 registerRun(program);
 registerDoctor(program);
+
+// The same check under the name a README author looks for.
+commonFlags(program.commands.find((c) => c.name() === "readme")!.command("verify-quickstart").description(QUICKSTART_DESCRIPTION))
+  .option("--source <kind>", "head или worktree", "worktree")
+  .action((flags: CommonFlags & { source: string }) => runCommand("readme", "verify-quickstart", flags, () => quickstartCommand(flags)));
 
 for (const [name, milestone] of Object.entries(PLANNED)) {
   program

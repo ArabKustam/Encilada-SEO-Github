@@ -11,6 +11,7 @@ headings:
   quickstart: Quick start
   usage: Usage
   commands: Commands
+  options: Options
   configuration: Configuration
   judges: For judges
   limitations: Limitations & Roadmap
@@ -24,6 +25,7 @@ phrases:
   liveDemo: "Open the live version"
   watchVideo: "Watch the video"
   coldStart: "free hosting: the first load may take up to a minute"
+  showCode: "Show code"
   filesCount: "{n} files"
   actionDemo: "Demo"
   actionDocs: "Documentation"

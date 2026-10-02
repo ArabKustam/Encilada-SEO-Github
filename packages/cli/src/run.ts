@@ -13,8 +13,9 @@ const STATE_FILE = "state.json";
 const DEFAULT_SCENARIO = "demo.scenario.yaml";
 const HERO = "docs/media/hero";
 const HERO_3D = "docs/media/hero-3d";
+const TERMINAL = "docs/assets/terminal";
 
-export const STEPS = ["scan", "brief", "claims", "deploy", "demo", "readme", "verify"] as const;
+export const STEPS = ["scan", "brief", "claims", "deploy", "demo", "readme", "audit", "verify"] as const;
 type StepId = (typeof STEPS)[number];
 type StepStatus = "done" | "skipped" | "waiting" | "failed" | "pending";
 
@@ -49,6 +50,9 @@ class Pause extends Error {
     super(message);
   }
 }
+
+/** A step that does not apply to this repository: nothing to do, nothing to remember. */
+class NotNeeded extends Error {}
 
 const collect = (value: string, previous: string[]) => [...previous, value];
 
@@ -104,9 +108,8 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
           must(["brief", "extract", "--file", resolve(flags.rules)]);
           throw new Pause("waiting", "правила сохранены — нужна разметка критериев", `Заполните ${REPOKIT_DIR}/brief.json по тексту ${REPOKIT_DIR}/brief.source.txt (каждый пункт — с дословной цитатой), затем: ${again}`);
         }
-        if (!flags.defaultBrief) {
-          throw new Pause("waiting", "нет правил хакатона", `Передайте правила: ${again} --rules <файл>. Если правил нет: ${again} --default-brief`);
-        }
+        // Most repositories are not hackathon entries: without rules the step simply does not apply.
+        if (!flags.defaultBrief) throw new NotNeeded(`правил хакатона нет — шаг не нужен (для хакатона: ${again} --rules <файл> или --default-brief)`);
         must(["brief", "init", "--default"]);
       }
       const validated = call(["brief", "validate"]);
@@ -120,6 +123,8 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
       const text = readArtifact(repo, "claims.json");
       const claims: { status: string; evidence: unknown[] }[] = text ? JSON.parse(text).claims : [];
       const proven = claims.filter((c) => (c.status === "implemented" || c.status === "partial") && c.evidence.length > 0).length;
+      // A README that promises nothing has nothing to prove.
+      if (claims.length === 0) throw new NotNeeded("в README нет списка возможностей — проверять нечего");
       if (proven === 0) {
         throw new Pause("waiting", "нет утверждений с доказательствами", `Разметьте ${REPOKIT_DIR}/claims.json: для каждого утверждения укажите статус и строки кода (см. SKILL.md), затем: ${again}`);
       }
@@ -144,6 +149,13 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
     },
 
     demo: () => {
+      const layout = call(["readme", "layout", "--dry-run"]).data as { demo?: string; projectType?: string } | undefined;
+      if (layout?.demo === "none") throw new NotNeeded(`проекту типа «${layout.projectType}» демо не нужно — нужен пример кода`);
+      if (layout?.demo === "terminal") {
+        if (existsSync(join(repo, `${TERMINAL}.svg`))) return `запись терминала: ${TERMINAL}.svg`;
+        throw new Pause("waiting", "нет записи работы в терминале",
+          `Запишите настоящий запуск инструмента: repokit capture terminal --repo ${path ?? "."} -- <команда>, затем: ${again}. Без демо: ${again} --skip demo`);
+      }
       const scenario = flags.scenario ? resolve(flags.scenario) : join(repo, DEFAULT_SCENARIO);
       if (!existsSync(scenario)) {
         must(["capture", "scenario", "draft"]);
@@ -166,7 +178,9 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
     },
 
     readme: () => {
-      const hero = existsSync(join(repo, `${HERO}.gif`)) ? ["--hero", `${HERO}.gif`] : [];
+      const hero = existsSync(join(repo, `${HERO}.gif`)) ? ["--hero", `${HERO}.gif`]
+        : existsSync(join(repo, `${TERMINAL}.svg`)) ? ["--hero", `${TERMINAL}.svg`, ...(existsSync(join(repo, `${TERMINAL}-dark.svg`)) ? ["--hero-dark", `${TERMINAL}-dark.svg`] : [])]
+        : [];
       const plan = must(["readme", "plan", "--preset", flags.preset, ...hero]);
       const empty = plan.data.slots.filter((s: { status: string }) => s.status === "empty").length;
       const preview = call(["readme", "apply", "--dry-run", "--preset", flags.preset, ...hero]);
@@ -176,6 +190,17 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
       }
       const applied = must(["readme", "apply", "--regenerate", "--preset", flags.preset, ...hero]);
       return `README.md ${applied.data.written ? "записан" : "без изменений"}: +${applied.data.added} −${applied.data.removed}; незаполненных разделов ${empty}`;
+    },
+
+    audit: () => {
+      // Advice, not a gate: what must not be published is caught by verify.
+      const audited = call(["readme", "audit"]);
+      const failed = (audited.data?.checks ?? []).filter((c: { ok: boolean }) => !c.ok) as { message: string; severity: string }[];
+      for (const [index, check] of failed.entries()) humanTodo.push({ id: `run.audit.${index}`, text: `README: ${check.message}` });
+      const assets = call(["assets", "check"]);
+      const media = assets.data ? assets.data.missing.length + assets.data.heavy.length + assets.data.unused.length + assets.data.badNames.length + assets.data.duplicates.length : 0;
+      if (media > 0) humanTodo.push({ id: "run.assets", text: "Медиафайлы требуют внимания: repokit assets check" });
+      return `README: пройдено ${audited.data?.passed ?? 0}, замечаний ${failed.length} (обязательных ${audited.data?.errors ?? 0}); медиа: замечаний ${media}`;
     },
 
     verify: () => {
@@ -202,8 +227,8 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
       humanTodo.push({ id: `run.skipped.${id}`, text: `Шаг «${id}» пропущен — результат неполный.` });
       continue;
     }
-    // Verification is cheap and its answer goes stale, so it is repeated on every run.
-    if (state.steps[id] === "done" && id !== "verify") {
+    // Checks are cheap and their answers go stale, so they are repeated on every run.
+    if (state.steps[id] === "done" && id !== "verify" && id !== "audit") {
       steps.push({ id, status: "done", summary: "выполнен ранее" });
       continue;
     }
@@ -212,6 +237,10 @@ async function run(path: string | undefined, flags: RunFlags): Promise<CommandRe
       state.steps[id] = "done";
       steps.push({ id, status: "done", summary });
     } catch (error) {
+      if (error instanceof NotNeeded) {
+        steps.push({ id, status: "skipped", summary: error.message });
+        continue;
+      }
       if (!(error instanceof Pause)) throw error;
       stopped = error;
       steps.push({ id, status: error.kind, summary: error.message });

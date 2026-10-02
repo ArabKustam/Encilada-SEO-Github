@@ -1,12 +1,13 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { PNG } from "pngjs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { listFiles, sha256 } from "@repokit/core";
 import { analyze, envVarUses } from "@repokit/scan";
 import {
-  analyzeExisting, auditReadme, bestExample, buildGraph, detectProfile, draftReadme, extractExamples, groupGraph, heroChecks,
-  loadContext, planLayout, type AuditCheck, type Options,
+  analyzeExisting, auditReadme, bestExample, buildGraph, detectProfile, draftReadme, extractExamples, fixReadme, groupGraph, heroChecks,
+  loadContext, planLayout, themeProblem, type AuditCheck, type Options,
 } from "../src/index.js";
 
 const created: string[] = [];
@@ -259,5 +260,99 @@ describe("groupGraph", () => {
     expect(graph.nodes.map((n) => n.file)).toEqual(["packages/app/", "packages/core/"]);
     expect(graph.edges).toEqual([{ from: "packages/app/", to: "packages/core/", kind: "import" }]);
     expect(graph.entryFiles).toEqual(["packages/app/"]);
+  });
+});
+
+describe("fixReadme", () => {
+  it("folds a very long code block and leaves wording alone", () => {
+    const code = Array.from({ length: 70 }, (_, i) => `line ${i}`).join("\n");
+    const { markdown, fixes } = fixReadme(`# T\n\nText.\n\n\`\`\`\n${code}\n\`\`\`\n`, "Show code");
+    expect(fixes).toHaveLength(1);
+    expect(markdown).toContain("<details>\n<summary>Show code (70)</summary>\n\n```\nline 0");
+    expect(markdown).toContain("line 69\n```\n\n</details>");
+    expect(fixReadme(markdown, "Show code").fixes).toEqual([]);
+  });
+
+  it("does not treat a # inside a code block as a heading", () => {
+    const text = "# T\n\n```bash\n# install\nnpm i\n```\n";
+    expect(fixReadme(text, "x")).toEqual({ markdown: text, fixes: [] });
+  });
+});
+
+describe("themeProblem", () => {
+  const png = (rgb: number, alphaShare: number) => {
+    const image = new PNG({ width: 20, height: 20 });
+    for (let i = 0; i < 400; i++) {
+      image.data.set([rgb, rgb, rgb, i < 400 * alphaShare ? 0 : 255], i * 4);
+    }
+    const repo = repoWith({});
+    const file = join(repo, "logo.png");
+    writeFileSync(file, PNG.sync.write(image));
+    return file;
+  };
+
+  it("notices a dark drawing on a transparent background, and only that", () => {
+    expect(themeProblem(png(10, 0.6))).toBe("dark");
+    expect(themeProblem(png(250, 0.6))).toBe("light");
+    expect(themeProblem(png(10, 0))).toBeNull();
+    expect(themeProblem(png(128, 0.6))).toBeNull();
+  });
+});
+
+describe("Go and Rust", () => {
+  it("reads cobra commands, flags, tests and environment variables", () => {
+    const repo = repoWith({
+      "go.mod": "module example.com/tool\n",
+      "main.go": [
+        "package main",
+        "",
+        "var syncCmd = &cobra.Command{",
+        '\tUse:   "sync [dir]",',
+        '\tShort: "Copy new files to the remote",',
+        "}",
+        "",
+        "func init() {",
+        '\tsyncCmd.Flags().BoolP("force", "f", false, "overwrite existing files")',
+        '\ttoken := os.Getenv("TOOL_TOKEN")',
+        "}",
+        "",
+      ].join("\n"),
+      "main_test.go": "package main\n\nfunc TestSlug(t *testing.T) {\n\tif Slug(\"A B\") != \"a-b\" {\n\t\tt.Fatal()\n\t}\n}\n",
+    });
+    const doc = extractExamples(repo, analyze(repo), new Set(listFiles(repo).files.map((f) => f.path)));
+    expect(doc.commands).toEqual([{ command: "sync [dir]", description: "Copy new files to the remote", file: "main.go", line: 4 }]);
+    expect(doc.options).toEqual([{ command: "-f, --force", description: "overwrite existing files", file: "main.go", line: 9 }]);
+    expect(doc.examples[0]).toMatchObject({ kind: "test", language: "go", title: "Slug", lines: [3, 7] });
+    expect(envVarUses(repo).map((v) => v.name)).toEqual(["TOOL_TOKEN"]);
+  });
+
+  it("reads clap commands and tells a required variable from one with a fallback", () => {
+    const repo = repoWith({
+      "Cargo.toml": '[package]\nname = "tool"\n',
+      "src/main.rs": [
+        "fn main() {",
+        '    let cli = Command::new("tool").about("Sync files")',
+        '        .subcommand(Command::new("push").about("Upload changes"));',
+        '    let key = env::var("TOOL_KEY").expect("TOOL_KEY");',
+        '    let region = env::var("TOOL_REGION").unwrap_or_default();',
+        "}",
+        "",
+      ].join("\n"),
+    });
+    const doc = extractExamples(repo, analyze(repo), new Set(listFiles(repo).files.map((f) => f.path)));
+    expect(doc.commands.map((c) => [c.command, c.description])).toEqual([["tool", "Sync files"], ["push", "Upload changes"]]);
+    expect(envVarUses(repo).map((v) => [v.name, v.optional])).toEqual([["TOOL_KEY", false], ["TOOL_REGION", true]]);
+  });
+});
+
+describe("command-line help texts", () => {
+  it("fills a constant into an f-string help and names the section Options when there are no sub-commands", () => {
+    const repo = repoWith({
+      "requirements.txt": "",
+      "tool.py": "import argparse\nDEFAULT_TOP = 10\nparser = argparse.ArgumentParser()\nparser.add_argument('file', help='path to a file')\nparser.add_argument('-n', '--top', help=f'how many (default {DEFAULT_TOP})')\nparser.add_argument('-q', '--quiet', help='print nothing')\nif __name__ == '__main__':\n    parser.parse_args()\n",
+    });
+    const { markdown } = draftReadme(repo, auto());
+    expect(markdown).toContain("## Options");
+    expect(markdown).toContain("| `-n, --top` | how many (default 10) |");
   });
 });

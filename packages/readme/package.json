@@ -14,10 +14,11 @@
     "dist"
   ],
   "dependencies": {
+    "@repokit/brief": "workspace:*",
     "@repokit/core": "workspace:*",
     "@repokit/scan": "workspace:*",
     "commander": "^15.0.0",
-    "yaml": "^2.9.1",
-    "@repokit/brief": "workspace:*"
+    "pngjs": "^7.0.0",
+    "yaml": "^2.9.1"
   }
 }

@@ -43,7 +43,7 @@ const PY_CLI_LIB = /^\s*(import|from)\s+(argparse|click|typer)\b/m;
 const JS_ROUTE = /\b(\w+)\.(get|post|put|patch|delete|all)\(\s*["'`](\/[^"'`]*)["'`]/;
 
 export function isTestFile(path: string): boolean {
-  return /(^|\/)(tests?|__tests__|spec)\//.test(path) || /(^|\/)test_[^/]+\.py$/.test(path) || /\.(test|spec)\.[jt]sx?$/.test(path);
+  return /(^|\/)(tests?|__tests__|spec)\//.test(path) || /(^|\/)test_[^/]+\.py$/.test(path) || /\.(test|spec)\.[jt]sx?$/.test(path) || /_test\.go$/.test(path);
 }
 
 function isJunk(path: string): boolean {

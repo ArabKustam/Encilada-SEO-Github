@@ -1,6 +1,8 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import type { Command } from "commander";
+import pixelmatch from "pixelmatch";
+import { PNG } from "pngjs";
 import {
   commonFlags, ExitCode, fileSha256, listFiles, readManifest, readText, recordMedia, REPOKIT_DIR, requireTool, resolveRepo, runCommand, runTool, UsageError,
   type CommandResult, type CommonFlags, type MediaEntry,
@@ -100,6 +102,46 @@ const badName = (path: string) => posix.basename(path) !== normalizedName(posix.
 const isHeavy = (asset: { path: string; bytes: number }) => asset.bytes > (posix.extname(asset.path).toLowerCase() === ".gif" ? LIMITS.gifBytes : LIMITS.imageBytes);
 const unusedOf = (inv: Inventory) => inv.assets.filter((a) => a.references.length === 0 && ASSET_DIRS.test(a.path));
 
+export interface Duplicate {
+  a: string;
+  b: string;
+  /** Share of pixels that differ: 0 for identical files. */
+  difference: number;
+}
+
+/** Pictures that show the same thing twice: identical files, or same-sized PNGs that differ in under 1 % of pixels. */
+export function duplicates(repo: string, paths: string[]): Duplicate[] {
+  const found: Duplicate[] = [];
+  const hashes = new Map<string, string>();
+  const decoded: { path: string; png: PNG }[] = [];
+  for (const path of paths) {
+    const file = join(repo, path);
+    const hash = fileSha256(file);
+    const same = hashes.get(hash);
+    if (same) {
+      found.push({ a: same, b: path, difference: 0 });
+      continue;
+    }
+    hashes.set(hash, path);
+    if (posix.extname(path).toLowerCase() !== ".png" || statSync(file).size > 4 * 1024 * 1024 || decoded.length >= 40) continue;
+    try {
+      decoded.push({ path, png: PNG.sync.read(readFileSync(file)) });
+    } catch {
+      // Not a PNG a decoder accepts: it is only compared by hash.
+    }
+  }
+  for (let i = 0; i < decoded.length; i++) {
+    for (let j = i + 1; j < decoded.length; j++) {
+      const { png: a } = decoded[i];
+      const { png: b } = decoded[j];
+      if (a.width !== b.width || a.height !== b.height) continue;
+      const difference = pixelmatch(a.data, b.data, undefined, a.width, a.height, { threshold: 0.1 }) / (a.width * a.height);
+      if (difference < 0.01) found.push({ a: decoded[i].path, b: decoded[j].path, difference: Math.round(difference * 10000) / 10000 });
+    }
+  }
+  return found;
+}
+
 interface CheckData {
   dir: string;
   total: number;
@@ -108,6 +150,7 @@ interface CheckData {
   unused: string[];
   heavy: { path: string; bytes: number }[];
   badNames: string[];
+  duplicates: Duplicate[];
   /** Media a document uses that lives outside the asset directories. */
   scattered: string[];
 }
@@ -123,6 +166,7 @@ function check(flags: CommonFlags): CommandResult<CheckData> {
     unused: unusedOf(inv).map((a) => a.path),
     heavy: inv.assets.filter(isHeavy).map(({ path, bytes }) => ({ path, bytes })),
     badNames: inv.assets.filter((a) => badName(a.path)).map((a) => a.path),
+    duplicates: duplicates(repo, inv.assets.filter((a) => /\.(png|jpe?g|gif|webp)$/i.test(a.path)).map((a) => a.path)),
     scattered: inv.assets.filter((a) => !ASSET_DIRS.test(a.path)).map((a) => a.path),
   };
   const line = (ok: boolean, good: string, bad: string) => `  ${ok ? "✓" : "✗"} ${ok ? good : bad}`;
@@ -134,6 +178,7 @@ function check(flags: CommonFlags): CommandResult<CheckData> {
       line(data.missing.length === 0, "все ссылки на медиа ведут к существующим файлам", `битые ссылки: ${data.missing.map((m) => `${m.file}:${m.line} → ${m.target}`).join(", ")}`),
       line(data.heavy.length === 0, "тяжёлых файлов нет", `тяжёлые: ${data.heavy.map((h) => `${h.path} (${megabytes(h.bytes)})`).join(", ")} — repokit assets optimize`),
       line(data.unused.length === 0, "неиспользуемых файлов нет", `никто не ссылается: ${data.unused.join(", ")} — repokit assets prune`),
+      line(data.duplicates.length === 0, "повторяющихся изображений нет", `почти одинаковые: ${data.duplicates.map((d) => `${d.a} и ${d.b}`).join("; ")} — оставьте одно`),
       line(data.badNames.length === 0, "имена файлов аккуратные", `имена с пробелами или заглавными буквами: ${data.badNames.join(", ")} — repokit assets normalize`),
       ...(data.scattered.length > 0 ? [`  · используется медиа вне папки ${data.dir}/: ${data.scattered.join(", ")}`] : []),
     ],

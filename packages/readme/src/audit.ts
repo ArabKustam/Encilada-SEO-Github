@@ -1,5 +1,6 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, posix } from "node:path";
+import { PNG } from "pngjs";
 import type { Context } from "./context.js";
 import type { Layout } from "./layout.js";
 import { checkReadme } from "./merge.js";
@@ -71,6 +72,35 @@ const MOTION = /\.(gif|mp4|webm)(\?|#|$)|user-attachments|<video/i;
 const ASSET_DIRS = /^(docs\/(assets|media|images|img|screenshots)|\.github\/(assets|images)|assets|media|images|screenshots)\//i;
 const MEDIA_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4", ".webm"]);
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+
+/**
+ * A picture with a transparent background shows the page behind it. If what is drawn is
+ * all dark, it disappears on GitHub's dark theme; all light — on the light one.
+ */
+export function themeProblem(file: string): "dark" | "light" | null {
+  let png: PNG;
+  try {
+    png = PNG.sync.read(readFileSync(file));
+  } catch {
+    return null;
+  }
+  const pixels = png.width * png.height;
+  const step = Math.max(1, Math.floor(pixels / 40000));
+  let transparent = 0;
+  let opaque = 0;
+  let luminance = 0;
+  for (let i = 0; i < pixels; i += step) {
+    const at = i * 4;
+    if (png.data[at + 3] < 32) transparent++;
+    else {
+      opaque++;
+      luminance += (0.2126 * png.data[at] + 0.7152 * png.data[at + 1] + 0.0722 * png.data[at + 2]) / 255;
+    }
+  }
+  if (opaque === 0 || transparent / (transparent + opaque) < 0.2) return null;
+  const mean = luminance / opaque;
+  return mean < 0.25 ? "dark" : mean > 0.85 ? "light" : null;
+}
 
 interface Line {
   text: string;
@@ -160,6 +190,17 @@ export function auditReadme(markdown: string, ctx: Context, layout: Layout): Aud
     if (size > limit) heavy.push(`${path} — ${megabytes(size)} МБ`);
   }
   add("visuals", "weight", heavy.length === 0, heavy.length === 0 ? "изображения не тяжёлые" : `тяжёлые изображения: ${heavy.join(", ")} — repokit assets optimize`, { fix: "auto" });
+  // Images inside <picture> already have a variant per theme.
+  const themed = new Set([...markdown.matchAll(/<picture>[\s\S]*?<\/picture>/gi)].flatMap((m) => [...m[0].matchAll(/(?:src|srcset)="([^"\s]+)/g)].map((s) => s[1])));
+  const vanishing: string[] = [];
+  for (const image of local) {
+    const path = image.target.split(/[?#]/)[0];
+    const file = join(ctx.repo, path);
+    if (themed.has(image.target) || extname(path).toLowerCase() !== ".png" || !existsSync(file) || statSync(file).size > 6 * 1024 * 1024) continue;
+    const problem = themeProblem(file);
+    if (problem) vanishing.push(`${path} — ${problem === "dark" ? "тёмный рисунок на прозрачном фоне не виден в тёмной теме" : "светлый рисунок на прозрачном фоне не виден в светлой теме"}`);
+  }
+  add("visuals", "themes", vanishing.length === 0, vanishing.length === 0 ? "изображения видны в обеих темах" : `${vanishing.join("; ")} — дайте вариант для второй темы (--hero-dark, <picture>) или непрозрачный фон`, { fix: "edit" });
   const noAlt = images.filter((i) => !BADGE.test(i.raw) && (i.raw.startsWith("<img") ? !/\balt="[^"]+"/.test(i.raw) : !i.alt.trim()));
   add("visuals", "alt", noAlt.length === 0, noAlt.length === 0 ? "у изображений есть описания" : `изображений без alt-текста: ${noAlt.length}`, { severity: "error", fix: "edit" });
 
@@ -199,7 +240,7 @@ export function auditReadme(markdown: string, ctx: Context, layout: Layout): Aud
 
   // --- Formatting
   const h1 = body.filter((l) => /^#\s+\S/.test(l.text));
-  add("formatting", "single-h1", h1.length <= 1, h1.length <= 1 ? "один заголовок первого уровня" : `заголовков первого уровня: ${h1.length} — должен быть один, название проекта`, { line: h1[1]?.number, fix: "edit" });
+  add("formatting", "single-h1", h1.length <= 1, h1.length <= 1 ? "один заголовок первого уровня" : `заголовков первого уровня: ${h1.length} — должен быть один, название проекта`, { line: h1[1]?.number, fix: "auto" });
   let previous = 1;
   let skipped: Line | undefined;
   for (const l of body) {
@@ -208,7 +249,7 @@ export function auditReadme(markdown: string, ctx: Context, layout: Layout): Aud
     if (level > previous + 1 && !skipped) skipped = l;
     previous = level;
   }
-  add("formatting", "hierarchy", !skipped, skipped ? `уровень заголовка перескакивает (строка ${skipped.number}: «${prose(skipped.text)}»)` : "уровни заголовков идут по порядку", { line: skipped?.number, fix: "edit" });
+  add("formatting", "hierarchy", !skipped, skipped ? `уровень заголовка перескакивает (строка ${skipped.number}: «${prose(skipped.text)}»)` : "уровни заголовков идут по порядку", { line: skipped?.number, fix: "auto" });
   const sections = body.filter((l) => /^##\s/.test(l.text));
   add("formatting", "sections", sections.length <= LIMITS.sectionsWarn, sections.length <= LIMITS.sectionsWarn ? `разделов: ${sections.length}` : `${sections.length} разделов — часть стоит объединить, свернуть или перенести в docs/`, { fix: "edit" });
   add("formatting", "length", lines.length <= LIMITS.linesWarn, lines.length <= LIMITS.linesWarn ? `строк: ${lines.length}` : `${lines.length} строк — подробности лучше свернуть в <details> или вынести в документацию`, { fix: "edit" });

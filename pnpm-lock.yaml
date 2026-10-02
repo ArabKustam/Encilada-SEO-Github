@@ -193,6 +193,12 @@ importers:
       commander:
         specifier: ^15.0.0
         version: 15.0.0
+      pixelmatch:
+        specifier: ^7.2.0
+        version: 7.2.0
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
 
   packages/brief:
     dependencies:
@@ -338,6 +344,9 @@ importers:
       commander:
         specifier: ^15.0.0
         version: 15.0.0
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
       yaml:
         specifier: ^2.9.1
         version: 2.9.1

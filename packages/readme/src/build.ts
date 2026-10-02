@@ -233,7 +233,7 @@ export function buildReadme(ctx: Context, preset: ReadmePreset): BuiltReadme {
         ? rows.map((r) => `- \`${r.command}\`${r.description ? ` — ${r.description}` : ""}`).join("\n")
         : [`| ${label} | ${phrases.description} |`, "|---|---|", ...rows.map((r) => `| \`${escapeCell(r.command)}\` | ${escapeCell(r.description) || "—"} |`)].join("\n");
       const wrapped = slot.options.collapsible ? `<details>\n<summary>${phrases.details}</summary>\n\n${body}\n\n</details>` : body;
-      return filled(`${heading("commands")}\n\n${wrapped}`, `определения командной строки в ${[...new Set(rows.map((r) => r.file))].join(", ")}`);
+      return filled(`${heading(commands.length > 0 ? "commands" : "options")}\n\n${wrapped}`, `определения командной строки в ${[...new Set(rows.map((r) => r.file))].join(", ")}`);
     },
 
     configuration: (slot) => {

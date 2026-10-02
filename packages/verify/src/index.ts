@@ -247,6 +247,32 @@ async function run(flags: VerifyFlags): Promise<CommandResult<VerifyReport>> {
   };
 }
 
+interface QuickstartData {
+  source: "head" | "worktree";
+  status: CheckStatus;
+  details: string[];
+}
+
+/** Only the question a newcomer cares about: do the commands from the README work in a fresh copy? */
+export async function quickstartCommand(flags: CommonFlags & { source: string }): Promise<CommandResult<QuickstartData | { plan: string[] }>> {
+  const repo = resolveRepo(flags.repo);
+  if (flags.source !== "head" && flags.source !== "worktree") throw new UsageError(`--source: ожидается head или worktree, получено «${flags.source}»`);
+  if (flags.dryRun) {
+    return { data: { plan: ["во временной копии репозитория были бы выполнены команды из раздела о запуске README"] }, summary: ["dry-run: команды не выполнялись"] };
+  }
+  const { report, notes } = await verifyRepository(repo, { source: flags.source, exec: true });
+  const check = report.checks.find((c) => c.id === "quickstart")!;
+  return {
+    data: { source: flags.source, status: check.status, details: check.details },
+    exitCode: check.status === "fail" ? ExitCode.CheckFailed : ExitCode.Ok,
+    warnings: notes,
+    humanTodo: check.status === "fail" ? [{ id: "verify.quickstart", text: `Команды из README не работают в чистой копии: ${check.details.filter((d) => d.startsWith("ОШИБКА")).join("; ")}` }] : [],
+    summary: [`${MARK[check.status].trim()}: ${check.title}`, ...check.details.map((d) => `  ${d}`)],
+  };
+}
+
+export const QUICKSTART_DESCRIPTION = "выполнить команды запуска из README во временной копии репозитория";
+
 export function registerVerify(program: Command): void {
   const verify = program.command("verify").description("проверка репозитория глазами того, кто его только что склонировал");
   commonFlags(verify.command("run").description("клонировать во временную папку и проверить README, ссылки, медиа, секреты, скрытый текст"))
@@ -255,4 +281,7 @@ export function registerVerify(program: Command): void {
     .option("--exec", "выполнить команды Quick start из README во временной копии")
     .option("--url <url>", "адрес работающей версии (по умолчанию — поле demoUrl)")
     .action((flags: VerifyFlags) => runCommand("verify", "run", flags, () => run(flags)));
+  commonFlags(verify.command("quickstart").description(QUICKSTART_DESCRIPTION))
+    .option("--source <kind>", "head (чистый клон последнего коммита) или worktree (рабочая папка без игнорируемых файлов)", "worktree")
+    .action((flags: CommonFlags & { source: string }) => runCommand("verify", "quickstart", flags, () => quickstartCommand(flags)));
 }

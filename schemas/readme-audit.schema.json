@@ -10,7 +10,8 @@
     "passed",
     "failed",
     "errors",
-    "checks"
+    "checks",
+    "fixes"
   ],
   "additionalProperties": false,
   "properties": {
@@ -99,6 +100,12 @@
             ]
           }
         }
+      }
+    },
+    "fixes": {
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
   }

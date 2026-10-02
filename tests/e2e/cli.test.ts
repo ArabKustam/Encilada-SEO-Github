@@ -124,11 +124,12 @@ describe("repokit run", () => {
   };
   const statuses = (data: { steps: { id: string; status: string }[] }) => Object.fromEntries(data.steps.map((s) => [s.id, s.status]));
 
-  it("stops and asks when there are no hackathon rules", () => {
+  it("does not ask for hackathon rules: without them the step simply does not apply", () => {
     const { code, data, todo } = run();
     expect(code).toBe(3);
-    expect(statuses(data)).toMatchObject({ scan: "done", brief: "waiting", claims: "pending" });
-    expect(todo[0].text).toContain("--default-brief");
+    expect(statuses(data)).toMatchObject({ scan: "done", brief: "skipped", claims: "waiting" });
+    expect(todo[0].text).toContain("claims.json");
+    expect(todo.map((t) => t.id)).not.toContain("run.skipped.brief");
   });
 
   it("stops until the claims are backed by code", () => {
@@ -219,5 +220,59 @@ describe("repokit readme: plan first, then write", () => {
     expect(readFileSync(join(project, ".repokit/readme.backup.md"), "utf8")).toBe(own);
     // What repokit wrote itself it may rewrite without asking again.
     expect(json("readme", "apply").code).toBe(0);
+  });
+});
+
+describe("repokit capture terminal", () => {
+  const project = mkdtempSync(join(tmpdir(), "repokit-terminal-"));
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  writeFileSync(join(project, "hello.js"), "console.log('\\u001b[32mready\\u001b[0m');\nconsole.log('key ' + process.env.DEMO_API_KEY);\nconsole.error('<done & dusted>');\n");
+
+  it("writes nothing and runs nothing on --dry-run", () => {
+    const { code } = repokit(["capture", "terminal", "--repo", project, "--dry-run", "--", "node", "hello.js"]);
+    expect(code).toBe(0);
+    expect(existsSync(join(project, "docs"))).toBe(false);
+  });
+
+  it("records what the command really printed, with secrets masked and provenance kept", () => {
+    const { code, stdout } = repokit(["capture", "terminal", "--repo", project, "--json", "--", "node", "hello.js"], { DEMO_API_KEY: SECRET });
+    expect(code).toBe(0);
+    const { data } = JSON.parse(stdout);
+    expect(data).toMatchObject({ command: "node hello.js", exitCode: 0, lines: 3, light: "docs/assets/terminal.svg", dark: "docs/assets/terminal-dark.svg" });
+    expect(data.text).toBe("$ node hello.js\nready\nkey [REDACTED]\n<done & dusted>");
+    const svg = readFileSync(join(project, "docs/assets/terminal.svg"), "utf8");
+    expect(svg).toContain("&lt;done &amp; dusted&gt;");
+    expect(svg).not.toContain(SECRET);
+    expect(svg).not.toContain("\u001b");
+    const manifest = JSON.parse(readFileSync(join(project, ".repokit/media.manifest.json"), "utf8"));
+    expect(validate("media-manifest", manifest).valid).toBe(true);
+    expect(manifest.media[0]).toMatchObject({ kind: "terminal", command: { line: "node hello.js", exitCode: 0 } });
+  });
+
+  it("says so when the command fails, and refuses a command that prints nothing", () => {
+    const failing = JSON.parse(repokit(["capture", "terminal", "--repo", project, "--json", "--out", "docs/assets/fail.svg", "--", "node", "-e", "\"console.log(1);process.exit(3)\""]).stdout);
+    expect(failing.data.exitCode).toBe(3);
+    expect(failing.warnings.join(" ")).toContain("кодом 3");
+    expect(repokit(["capture", "terminal", "--repo", project, "--", "node", "-e", "0"]).code).toBe(2);
+  });
+});
+
+describe("repokit readme audit --fix", () => {
+  const project = mkdtempSync(join(tmpdir(), "repokit-fix-"));
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  const original = "# Tool\n\nCounts words in text files and prints the most frequent ones.\n\n\n\n# Usage\n\n#### Options\n\nNone yet.\n";
+  writeFileSync(join(project, "README.md"), original);
+
+  it("shows the repairs on --dry-run and makes them without it, keeping the previous version", () => {
+    const dry = JSON.parse(repokit(["readme", "audit", "--fix", "--dry-run", "--repo", project, "--json"]).stdout);
+    expect(dry.data.fixes).toHaveLength(3);
+    expect(readFileSync(join(project, "README.md"), "utf8")).toBe(original);
+
+    repokit(["readme", "audit", "--fix", "--repo", project, "--json"]);
+    expect(readFileSync(join(project, "README.md"), "utf8")).toBe("# Tool\n\nCounts words in text files and prints the most frequent ones.\n\n## Usage\n\n### Options\n\nNone yet.\n");
+    expect(readFileSync(join(project, ".repokit/readme.backup.md"), "utf8")).toBe(original);
+    const again = JSON.parse(repokit(["readme", "audit", "--fix", "--repo", project, "--json"]).stdout);
+    expect(again.data.fixes).toEqual([]);
+    expect(again.data.checks.find((c: { id: string }) => c.id === "hierarchy").ok).toBe(true);
   });
 });

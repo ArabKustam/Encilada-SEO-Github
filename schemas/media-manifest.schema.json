@@ -17,7 +17,7 @@
         "properties": {
           "path": { "type": "string" },
           "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "kind": { "enum": ["video", "screenshot", "events", "render", "gif", "webp", "poster"] },
+          "kind": { "enum": ["video", "screenshot", "events", "render", "gif", "webp", "poster", "terminal"] },
           "createdAt": { "type": "string" },
           "tool": {
             "type": "object",
@@ -38,6 +38,17 @@
               "scenario": { "type": "string" },
               "scenarioSha256": { "type": "string" },
               "baseUrl": { "type": "string" },
+              "targetCommit": { "type": ["string", "null"] },
+              "targetDirty": { "type": "boolean" }
+            }
+          },
+          "command": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["line", "exitCode", "targetCommit", "targetDirty"],
+            "properties": {
+              "line": { "type": "string" },
+              "exitCode": { "type": ["integer", "null"] },
               "targetCommit": { "type": ["string", "null"] },
               "targetDirty": { "type": "boolean" }
             }

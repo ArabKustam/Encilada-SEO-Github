@@ -10,7 +10,7 @@ export interface MediaEntry {
   /** POSIX path relative to the repository root. */
   path: string;
   sha256: string;
-  kind: "video" | "screenshot" | "events" | "render" | "gif" | "webp" | "poster";
+  kind: "video" | "screenshot" | "events" | "render" | "gif" | "webp" | "poster" | "terminal";
   createdAt: string;
   tool: { name: string; version: string; browser?: string };
   /** Present on recordings of the real application. */
@@ -22,6 +22,8 @@ export interface MediaEntry {
     targetCommit: string | null;
     targetDirty: boolean;
   };
+  /** Present on pictures of a terminal: the command that was really run. */
+  command?: { line: string; exitCode: number | null; targetCommit: string | null; targetDirty: boolean };
   /** Hashes of the media this file was produced from. */
   derivedFrom?: string[];
   masks?: string[];

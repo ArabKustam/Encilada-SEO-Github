@@ -165,6 +165,18 @@ describe.skipIf(!enabled)("capture → studio on the FastAPI fixture", () => {
     expect(readFileSync(join(repo, "docs/slides/slides.pdf")).subarray(0, 8).toString("latin1")).toBe("%PDF-1.4" );
   }, 600_000);
 
+  it("takes a single screenshot without a scenario, in both themes, with provenance", () => {
+    const { code, envelope, stderr } = repokit([
+      "capture", "screenshot", "--url", "http://127.0.0.1:8017/", "--start", "python -m uvicorn app.main:app --port 8017",
+      "--themes", "light,dark", "--wait-for", "h1", "--size", "tablet", "--demo-data",
+    ]);
+    expect(code, stderr).toBe(0);
+    expect(envelope.data.shots).toEqual(["docs/assets/screenshot.png", "docs/assets/screenshot-dark.png"]);
+    for (const shot of envelope.data.shots) expect(statSync(join(repo, shot)).size).toBeGreaterThan(5_000);
+    const entry = manifest().media.find((m: { path: string }) => m.path === "docs/assets/screenshot.png");
+    expect(entry).toMatchObject({ kind: "screenshot", demoData: true, source: { baseUrl: "http://127.0.0.1:8017" } });
+  }, 120_000);
+
   it("refuses to render a preset with an empty slot", () => {
     const { code, envelope } = repokit(["studio", "render", "--preset", "laptop-orbit", "--out", "x.mp4"]);
     expect(code).toBe(2);
@@ -209,7 +221,7 @@ describe.skipIf(!enabled)("repokit run, start to finish", () => {
 
     const { code, envelope, stderr } = run("--approve", "demo", "--approve", "readme");
     expect(code, stderr).toBe(0);
-    expect(envelope.data.steps.map((s: { status: string }) => s.status)).toEqual(["done", "done", "done", "done", "done", "done", "done"]);
+    expect(envelope.data.steps.map((s: { status: string }) => s.status)).toEqual(["done", "done", "done", "done", "done", "done", "done", "done"]);
     expect(statSync(join(project, "docs/media/hero.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
     expect(statSync(join(project, "docs/media/hero-3d.gif")).size).toBeLessThanOrEqual(GIF_BUDGET_BYTES);
 

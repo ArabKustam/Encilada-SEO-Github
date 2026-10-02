@@ -11,6 +11,7 @@ headings:
   quickstart: Быстрый старт
   usage: Пример использования
   commands: Команды
+  options: Опции
   configuration: Настройка
   judges: Для жюри
   limitations: Ограничения и планы
@@ -24,6 +25,7 @@ phrases:
   liveDemo: "Открыть работающую версию"
   watchVideo: "Смотреть видео"
   coldStart: "бесплатный хостинг: первое открытие может занять до минуты"
+  showCode: "Показать код"
   filesCount: "файлов: {n}"
   actionDemo: "Демо"
   actionDocs: "Документация"

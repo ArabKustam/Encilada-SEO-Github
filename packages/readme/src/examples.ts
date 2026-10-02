@@ -100,9 +100,11 @@ function fromDocumentation(repo: string, files: Set<string>, readmeFile: string 
           open = { start: index + 2, language: fence[2].toLowerCase() };
           return;
         }
-        const { start, language } = open;
-        open = null;
+        const start = open.start;
         const end = index;
+        // A block with no language under a usage heading is, in practice, a command line.
+        const language = open.language || "bash";
+        open = null;
         if (!relevant || !CODE_LANGS.has(language) || end - start + 1 < 1 || end - start + 1 > MAX_LINES) return;
         const shell = SHELL_LANGS.has(language);
         // A code example teaches more than a shell line; the README's own examples outrank other docs.
@@ -147,6 +149,18 @@ function fromTests(repo: string, files: Set<string>): Example[] {
         const length = close - index + 1;
         if (length >= MIN_LINES + 1 && length <= 15) out.push(snippet("test", file, lines, index + 1, close + 1, posix.extname(file).slice(1).replace(/x$/, ""), it[2], 0.5 - length / 100));
       });
+    } else if (file.endsWith("_test.go") || file.endsWith(".rs")) {
+      const go = file.endsWith(".go");
+      lines.forEach((line, index) => {
+        const fn = go ? line.match(/^func (Test\w+)\(/) : lines[index - 1]?.trim() === "#[test]" ? line.match(/^(\s*)fn (\w+)\(/) : null;
+        if (!fn) return;
+        const indent = go ? "" : fn[1];
+        const close = lines.findIndex((l, i) => i > index && l === `${indent}}`);
+        if (close === -1) return;
+        const length = close - index + 1;
+        const name = (go ? fn[1].replace(/^Test/, "") : fn[2]).replace(/_/g, " ");
+        if (length >= MIN_LINES + 1 && length <= 15) out.push(snippet("test", file, lines, index + 1, close + 1, go ? "go" : "rust", name, 0.5 - length / 100));
+      });
     }
   }
   return out;
@@ -154,12 +168,20 @@ function fromTests(repo: string, files: Set<string>): Example[] {
 
 const literal = (source: string | undefined) => source?.match(/^f?["'`]([\s\S]*)["'`]$/)?.[1] ?? null;
 
+/** `default {DEFAULT_TOP}` in an f-string help text → `default 10`, when the constant is a literal in the same file. */
+function resolvePlaceholders(text: string, source: string): string {
+  return text.replace(/\{([A-Za-z_]\w*)\}/g, (whole, name: string) => {
+    const value = source.match(new RegExp(`^${name}\\s*(?::[^=]+)?=\\s*(\\d+(?:\\.\\d+)?|"[^"]*"|'[^']*')\\s*$`, "m"))?.[1];
+    return value === undefined ? whole : value.replace(/^["']|["']$/g, "");
+  });
+}
+
 /** Sub-commands and options, read from how the command-line parser is set up. */
 function fromCommandLine(repo: string, files: Set<string>): { commands: CommandInfo[]; options: CommandInfo[] } {
   const commands: CommandInfo[] = [];
   const options: CommandInfo[] = [];
   for (const file of files) {
-    if (isTestFile(file) || !/\.(py|[cm]?[jt]s)$/.test(file)) continue;
+    if (isTestFile(file) || !/\.(py|[cm]?[jt]s|go|rs)$/.test(file)) continue;
     const text = readText(repo, file);
     if (!text) continue;
     const lines = text.split(/\r?\n/);
@@ -171,14 +193,36 @@ function fromCommandLine(repo: string, files: Set<string>): { commands: CommandI
         if (argument) {
           const flags = [...argument[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]).join(", ");
           const help = literal(argument[2].match(/help\s*=\s*(f?["'][^"']*["'])/)?.[1]);
-          options.push({ command: flags, description: help ?? "", ...at });
+          options.push({ command: flags, description: resolvePlaceholders(help ?? "", text), ...at });
         }
         const parser = line.match(/\.add_parser\(\s*["']([^"']+)["'](.*)$/);
         if (parser) commands.push({ command: parser[1], description: literal(parser[2].match(/help\s*=\s*(f?["'][^"']*["'])/)?.[1]) ?? "", ...at });
         const click = line.match(/@click\.option\(\s*((?:["'][^"']+["']\s*,\s*)*["'][^"']+["'])(.*)$/);
         if (click) {
           const flags = [...click[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]).join(", ");
-          options.push({ command: flags, description: literal(click[2].match(/help\s*=\s*(f?["'][^"']*["'])/)?.[1]) ?? "", ...at });
+          options.push({ command: flags, description: resolvePlaceholders(literal(click[2].match(/help\s*=\s*(f?["'][^"']*["'])/)?.[1]) ?? "", text), ...at });
+        }
+      } else if (file.endsWith(".go")) {
+        // cobra: &cobra.Command{ Use: "sync [dir]", Short: "…" } and cmd.Flags().StringVarP(&x, "name", "n", "", "…")
+        const use = line.match(/\bUse:\s*"([^"]+)"/);
+        if (use) {
+          const near = lines.slice(index, index + 6).join(" ");
+          commands.push({ command: use[1], description: near.match(/\bShort:\s*"([^"]+)"/)?.[1] ?? "", ...at });
+        }
+        const flag = line.match(/\.(?:String|Bool|Int|Duration|StringSlice|Float64)(?:Var)?(P)?\(\s*(?:&[\w.]+\s*,\s*)?"([\w-]+)"\s*,(?:\s*"(\w?)"\s*,)?.*,\s*"([^"]*)"\s*\)/);
+        if (flag) options.push({ command: `${flag[1] && flag[3] ? `-${flag[3]}, ` : ""}--${flag[2]}`, description: flag[4], ...at });
+      } else if (file.endsWith(".rs")) {
+        // clap builder: Command::new("sync").about("…"); derive: a doc comment above a variant of a Subcommand enum
+        const built = line.match(/Command::new\(\s*"([^"]+)"\s*\)/);
+        if (built) {
+          const near = lines.slice(index, index + 4).join(" ");
+          commands.push({ command: built[1], description: near.match(/\.about\(\s*"([^"]+)"/)?.[1] ?? "", ...at });
+        }
+        const arg = line.match(/Arg::new\(\s*"([^"]+)"\s*\)/);
+        if (arg) {
+          const near = lines.slice(index, index + 5).join(" ");
+          const long = near.match(/\.long\(\s*"([^"]+)"/)?.[1];
+          options.push({ command: long ? `--${long}` : arg[1], description: near.match(/\.help\(\s*"([^"]+)"/)?.[1] ?? "", ...at });
         }
       } else {
         // commander: .command("name <arg>") … .description("…")

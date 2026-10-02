@@ -10,13 +10,16 @@ export interface EnvVarUse {
   optional: boolean;
 }
 
-const CODE_FILE = /\.(py|ts|tsx|js|jsx|mjs|cjs)$/;
+const CODE_FILE = /\.(py|ts|tsx|js|jsx|mjs|cjs|go|rs)$/;
 const PATTERNS = [
   /process\.env\.([A-Z][A-Z0-9_]+)/g,
   /process\.env\[\s*["']([A-Z][A-Z0-9_]+)["']\s*\]/g,
   /os\.environ(?:\.get)?\s*[[(]\s*["']([A-Z][A-Z0-9_]+)["']/g,
   /os\.getenv\(\s*["']([A-Z][A-Z0-9_]+)["']/g,
   /import\.meta\.env\.([A-Z][A-Z0-9_]+)/g,
+  /os\.(?:Getenv|LookupEnv)\(\s*"([A-Z][A-Z0-9_]+)"/g,
+  /env::var(?:_os)?\(\s*"([A-Z][A-Z0-9_]+)"/g,
+  /\benv!\(\s*"([A-Z][A-Z0-9_]+)"/g,
 ];
 /** Variables set by the platform or the runtime rather than by whoever configures the project. */
 const AMBIENT = new Set(["PORT", "NODE_ENV", "CI", "HOME", "PATH", "HOST", "DEBUG", "PYTHONPATH", "TEMP", "TMP", "USER", "SHELL", "PWD", "LANG", "TERM", "MODE", "DEV", "PROD", "BASE_URL", "SSR"]);
@@ -37,7 +40,8 @@ export function envVarUses(repo: string): EnvVarUse[] {
           if (AMBIENT.has(match[1]) || found.has(match[1])) continue;
           const after = content.slice(match.index! + match[0].length);
           // `process.env.X ?? d`, `process.env.X || d`, `if (process.env.X)`, `os.environ.get("X", d)`, `os.getenv("X")`
-          const optional = /^\s*\]?\s*(\?\?|\|\||\?|\)|&&|===?|!==?)/.test(after) || /^\s*,/.test(after) || /getenv|environ\.get/.test(match[0]);
+          const optional = /^\s*\]?\s*(\?\?|\|\||\?|\)|&&|===?|!==?)/.test(after) && !/^\s*\)\s*\.(expect|unwrap)\(/.test(after) || /^\s*,/.test(after)
+            || /getenv|environ\.get|LookupEnv|Getenv/.test(match[0]) || (/env::var/.test(match[0]) && /unwrap_or|\.ok\(\)|if let|match /.test(content));
           found.set(match[1], { name: match[1], file: file.path, line: index + 1, optional });
         }
       }

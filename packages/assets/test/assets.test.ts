@@ -4,7 +4,8 @@ import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { inventory, normalizedName } from "../src/index.js";
+import { PNG } from "pngjs";
+import { duplicates, inventory, normalizedName } from "../src/index.js";
 
 const BIN = fileURLToPath(new URL("../../cli/dist/bin.js", import.meta.url));
 const created: string[] = [];
@@ -89,5 +90,24 @@ describe("repokit assets", () => {
     expect(readFileSync(join(repo, ".repokit/assets-pruned/docs/assets/old-draft.png"), "utf8")).toBe("c");
     expect(existsSync(join(repo, "docs/assets/chart.png"))).toBe(true);
     expect(existsSync(join(repo, "src/logo.png"))).toBe(true);
+  });
+});
+
+describe("duplicates", () => {
+  it("finds identical files and near-identical pictures, not merely similar ones", () => {
+    const picture = (changed: number) => {
+      const image = new PNG({ width: 40, height: 40 });
+      for (let i = 0; i < 1600; i++) image.data.set(i < changed ? [255, 0, 0, 255] : [20, 20, 20, 255], i * 4);
+      return PNG.sync.write(image);
+    };
+    const repo = repoWith({ "README.md": "# App\n" });
+    mkdirSync(join(repo, "docs/assets"), { recursive: true });
+    writeFileSync(join(repo, "docs/assets/a.png"), picture(0));
+    writeFileSync(join(repo, "docs/assets/a-copy.png"), picture(0));
+    writeFileSync(join(repo, "docs/assets/b.png"), picture(8));
+    writeFileSync(join(repo, "docs/assets/c.png"), picture(800));
+    const found = duplicates(repo, ["docs/assets/a.png", "docs/assets/a-copy.png", "docs/assets/b.png", "docs/assets/c.png"]);
+    expect(found.map((d) => `${d.a}=${d.b}`)).toEqual(["docs/assets/a.png=docs/assets/a-copy.png", "docs/assets/a.png=docs/assets/b.png"]);
+    expect(found[0].difference).toBe(0);
   });
 });

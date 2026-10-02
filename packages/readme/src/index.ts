@@ -10,6 +10,7 @@ import { buildGraph, groupGraph, MAX_BLOCKS, mermaid } from "./architecture.js";
 import { auditReadme, heroChecks, renderAudit, type AuditCheck } from "./audit.js";
 import { buildReadme, type SlotResult } from "./build.js";
 import { extractExamples, type ExamplesDoc } from "./examples.js";
+import { fixReadme } from "./fix.js";
 import { isStyle, planLayout, presetFromLayout, type Layout } from "./layout.js";
 import { KIND_TITLES, STYLE_TITLES, STYLES, type ProjectKind, type Style } from "./profile.js";
 import {
@@ -21,9 +22,10 @@ import { checkReadme, mergeCustomSections, type ReadmeProblem } from "./merge.js
 export { buildReadme, slug } from "./build.js";
 export type { SlotResult, SlotStatus } from "./build.js";
 export { buildGraph, groupGraph, mermaid } from "./architecture.js";
-export { auditReadme, heroChecks, LIMITS } from "./audit.js";
+export { auditReadme, heroChecks, LIMITS, themeProblem } from "./audit.js";
 export type { AuditCategory, AuditCheck } from "./audit.js";
 export { bestExample, extractExamples } from "./examples.js";
+export { fixReadme } from "./fix.js";
 export type { Example, ExamplesDoc } from "./examples.js";
 export { analyzeExisting, planLayout, presetFromLayout } from "./layout.js";
 export type { Layout, LayoutSection } from "./layout.js";
@@ -354,6 +356,8 @@ function layoutCommand(flags: PlanFlags): CommandResult<Layout> {
 }
 
 interface AuditData {
+  /** Mechanical repairs made by --fix (or that it would make, on a dry run). */
+  fixes: string[];
   file: string;
   projectType: ProjectKind;
   passed: number;
@@ -364,6 +368,7 @@ interface AuditData {
 
 interface AuditFlags extends CommonFlags {
   draft?: boolean;
+  fix?: boolean;
 }
 
 function audit(flags: AuditFlags, only: (checks: AuditCheck[]) => AuditCheck[] = (c) => c): CommandResult<AuditData> {
@@ -373,18 +378,34 @@ function audit(flags: AuditFlags, only: (checks: AuditCheck[]) => AuditCheck[] =
   const draft = flags.draft ? readArtifact(repo, DRAFT_FILE) : null;
   if (flags.draft && draft === null) throw new UsageError(`Черновика нет: сначала repokit readme plan`);
   if (!flags.draft && !existsSync(readmePath)) throw new UsageError("В репозитории нет README.md. Собрать: repokit readme plan");
-  const markdown = draft ?? readFileSync(readmePath, "utf8");
+  if (flags.fix && flags.draft) throw new UsageError("--fix правит README.md; черновик пересобирается командой readme plan");
+  let markdown = draft ?? readFileSync(readmePath, "utf8");
   const context = loadContext(repo, options);
+  const artifacts = [];
+  let fixes: string[] = [];
+  if (flags.fix) {
+    const fixed = fixReadme(markdown, context.i18n.phrases.showCode);
+    fixes = fixed.fixes;
+    if (fixed.markdown !== markdown && !flags.dryRun) {
+      const own = writtenByRepokit(repo, markdown);
+      artifacts.push(writeArtifact(repo, BACKUP_FILE, markdown, "readme-backup"));
+      writeFileSync(readmePath, fixed.markdown);
+      // A README repokit wrote stays recognisable as its own after the repair.
+      if (own) artifacts.push(writeArtifact(repo, APPLIED_FILE, json({ schemaVersion: 1, sha256: sha256(fixed.markdown) }), "readme-applied"));
+    }
+    if (!flags.dryRun) markdown = fixed.markdown;
+  }
   const layout = resolveLayout(repo, context, markdown, options.style);
   const checks = only(auditReadme(markdown, context, layout));
   const failed = checks.filter((c) => !c.ok);
   const errors = failed.filter((c) => c.severity === "error").length;
-  const data: AuditData = { file: flags.draft ? `${REPOKIT_DIR}/${DRAFT_FILE}` : README, projectType: layout.projectType, passed: checks.length - failed.length, failed: failed.length, errors, checks };
+  const data: AuditData = { fixes, file: flags.draft ? `${REPOKIT_DIR}/${DRAFT_FILE}` : README, projectType: layout.projectType, passed: checks.length - failed.length, failed: failed.length, errors, checks };
   return {
     data,
     exitCode: errors > 0 ? ExitCode.CheckFailed : ExitCode.Ok,
-    artifacts: [writeArtifact(repo, AUDIT_FILE, json(data), "readme-audit", flags.dryRun)],
+    artifacts: [...artifacts, writeArtifact(repo, AUDIT_FILE, json(data), "readme-audit", flags.dryRun)],
     summary: [
+      ...(flags.fix ? [fixes.length === 0 ? "исправлять автоматически нечего" : `${flags.dryRun ? "были бы исправлены" : "исправлено"}: ${fixes.length}${flags.dryRun ? "" : `; прежняя версия — ${REPOKIT_DIR}/${BACKUP_FILE}`}`, ...fixes.map((f) => `  ${f}`)] : []),
       `${data.file} — ${KIND_TITLES[layout.projectType]}: пройдено ${data.passed} из ${checks.length}, обязательных замечаний: ${errors}, советов: ${failed.length - errors}`,
       ...renderAudit(checks),
     ],
@@ -471,6 +492,7 @@ export function registerReadme(program: Command): void {
     .action((flags: PlanFlags) => runCommand("readme", "generate", flags, () => plan(flags)));
   commonFlags(readme.command("audit").description("оценить README по категориям: понятность, первый экран, визуалы, запуск, примеры, утверждения, оформление, файлы"))
     .option("--draft", "проверить черновик .repokit/readme.draft.md вместо README.md")
+    .option("--fix", "исправить механические проблемы: уровни заголовков, лишние пустые строки, очень длинные блоки кода")
     .action((flags: AuditFlags) => runCommand("readme", "audit", flags, () => audit(flags)));
   commonFlags(readme.command("hero-check").description("проверить первый экран README: что это, для кого, что делать дальше"))
     .option("--draft", "проверить черновик .repokit/readme.draft.md вместо README.md")
